@@ -83,10 +83,19 @@ unsafe fn create_instance(window: &Window, entry: &Entry, data: &mut AppData) ->
         extensions.push(vk::EXT_DEBUG_UTILS_EXTENSION.name.as_ptr());
     }
 
-    let info = vk::InstanceCreateInfo::builder()
+    let mut info = vk::InstanceCreateInfo::builder()
         .application_info(&application_info)
         .enabled_layer_names(&layers)
         .enabled_extension_names(&extensions);
+
+    let mut debug_info = vk::DebugUtilsMessengerCreateInfoEXT::builder()
+        .message_severity(vk::DebugUtilsMessageSeverityFlagsEXT::all())
+        .message_type(vk::DebugUtilsMessageTypeFlagsEXT::all())
+        .user_callback(Some(debug_callback));
+
+    if VALIDATION_ENABLED {
+        info = info.push_next(&mut debug_info);
+    }
 
     let instance = entry.create_instance(&info, None)?;
 
