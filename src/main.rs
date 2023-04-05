@@ -52,10 +52,14 @@ unsafe fn create_instance(window: &Window, entry: &Entry) -> Result<Instance> {
         Vec::new()
     };
 
-    let extensions = vk_window::get_required_instance_extensions(window)
+    let mut extensions = vk_window::get_required_instance_extensions(window)
         .iter()
         .map(|e| e.as_ptr())
         .collect::<Vec<_>>();
+
+    if VALIDATION_ENABLED {
+        extensions.push(vk::EXT_DEBUG_UTILS_EXTENSION.name.as_ptr());
+    }
 
     let info = vk::InstanceCreateInfo::builder()
         .application_info(&application_info)
