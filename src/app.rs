@@ -13,6 +13,7 @@ pub(crate) struct App {
     entry: Entry,
     instance: Instance,
     data: AppData,
+    pub(crate) destroying: bool,
 }
 
 impl App {
@@ -26,6 +27,7 @@ impl App {
             entry,
             instance,
             data,
+            destroying: false,
         })
     }
 

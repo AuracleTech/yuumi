@@ -2,10 +2,11 @@
 	"version": "2.0.0",
 	"tasks": [
 		{
-			"label": "rust: run main.rs by default",
+			"label": "rust: Run 'client' example",
 			"type": "cargo",
 			"command": "run",
 			"problemMatcher": ["$rustc"],
+			"args": ["--example", "client"],
 			"group": {
 				"kind": "build",
 				"isDefault": true

@@ -24,7 +24,7 @@ const VALIDATION_ENABLED: bool = cfg!(debug_assertions);
 const VALIDATION_LAYER: vk::ExtensionName =
     vk::ExtensionName::from_bytes(b"VK_LAYER_KHRONOS_validation");
 
-fn main() -> Result<()> {
+pub fn start() -> Result<()> {
     pretty_env_logger::init();
 
     // Window
@@ -38,18 +38,17 @@ fn main() -> Result<()> {
     // App
 
     let mut app = unsafe { App::create(&window)? };
-    let mut destroying = false;
     event_loop.run(move |event, _, control_flow| {
         *control_flow = ControlFlow::Poll;
         match event {
             // Render a frame if our Vulkan app is not being destroyed.
-            Event::MainEventsCleared if !destroying => unsafe { app.render(&window) }.unwrap(),
+            Event::MainEventsCleared if !app.destroying => unsafe { app.render(&window) }.unwrap(),
             // Destroy our Vulkan app.
             Event::WindowEvent {
                 event: WindowEvent::CloseRequested,
                 ..
             } => {
-                destroying = true;
+                app.destroying = true;
                 *control_flow = ControlFlow::Exit;
                 unsafe {
                     app.destroy();
