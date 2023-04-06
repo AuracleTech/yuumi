@@ -7,6 +7,7 @@
 
 mod app;
 mod vk_instance;
+mod vk_physical;
 
 use winit::dpi::LogicalSize;
 use winit::event::{Event, WindowEvent};

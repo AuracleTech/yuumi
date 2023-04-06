@@ -1,11 +1,12 @@
 use anyhow::{anyhow, Result};
-use vulkanalia::loader::{LibloadingLoader, LIBRARY};
-use vulkanalia::prelude::v1_0::*;
+
 use winit::window::Window;
 
+use vulkanalia::loader::{LibloadingLoader, LIBRARY};
+use vulkanalia::prelude::v1_0::*;
 use vulkanalia::vk::ExtDebugUtilsExtension;
 
-use crate::{vk_instance, VALIDATION_ENABLED};
+use crate::{vk_instance, vk_physical, VALIDATION_ENABLED};
 
 /// Our Vulkan app.
 #[derive(Clone, Debug)]
@@ -14,6 +15,7 @@ pub(crate) struct App {
     instance: Instance,
     data: AppData,
     pub(crate) destroying: bool,
+    pub(crate) physical_device: vk::PhysicalDevice,
 }
 
 impl App {
@@ -23,11 +25,13 @@ impl App {
         let entry = Entry::new(loader).map_err(|b| anyhow!("{}", b))?;
         let mut data = AppData::default();
         let instance = vk_instance::create_instance(window, &entry, &mut data)?;
+        let physical_device = vk_physical::pick_physical_device(&instance)?;
         Ok(Self {
             entry,
             instance,
             data,
             destroying: false,
+            physical_device,
         })
     }
 
