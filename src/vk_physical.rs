@@ -5,7 +5,9 @@ use thiserror::Error;
 use anyhow::{anyhow, Result};
 
 use vulkanalia::prelude::v1_0::*;
-use vulkanalia::{vk::PhysicalDevice, Instance};
+use vulkanalia::Instance;
+
+use crate::app::AppData;
 
 #[derive(Debug, Error)]
 #[error("Missing {0}.")]
@@ -13,6 +15,7 @@ pub struct SuitabilityError(pub &'static str);
 
 unsafe fn check_physical_device(
     instance: &Instance,
+    data: &AppData,
     physical_device: vk::PhysicalDevice,
 ) -> Result<()> {
     let properties = instance.get_physical_device_properties(physical_device);
@@ -29,22 +32,23 @@ unsafe fn check_physical_device(
         )));
     }
 
-    QueueFamilyIndices::get(instance, physical_device)?;
+    QueueFamilyIndices::get(instance, data, physical_device)?;
     Ok(())
 }
 
-pub(crate) unsafe fn pick_physical_device(instance: &Instance) -> Result<PhysicalDevice> {
+pub(crate) unsafe fn pick_physical_device(instance: &Instance, data: &mut AppData) -> Result<()> {
     for physical_device in instance.enumerate_physical_devices()? {
         let properties = instance.get_physical_device_properties(physical_device);
 
-        if let Err(error) = check_physical_device(instance, physical_device) {
+        if let Err(error) = check_physical_device(instance, data, physical_device) {
             warn!(
                 "Skipping physical device (`{}`): {}",
                 properties.device_name, error
             );
         } else {
             info!("Selected physical device (`{}`).", properties.device_name);
-            return Ok(physical_device);
+            data.physical_device = physical_device;
+            return Ok(());
         }
     }
 
@@ -52,12 +56,16 @@ pub(crate) unsafe fn pick_physical_device(instance: &Instance) -> Result<Physica
 }
 
 #[derive(Copy, Clone, Debug)]
-struct QueueFamilyIndices {
-    graphics: u32,
+pub(crate) struct QueueFamilyIndices {
+    pub(crate) graphics: u32,
 }
 
 impl QueueFamilyIndices {
-    unsafe fn get(instance: &Instance, physical_device: vk::PhysicalDevice) -> Result<Self> {
+    pub(crate) unsafe fn get(
+        instance: &Instance,
+        data: &AppData,
+        physical_device: vk::PhysicalDevice,
+    ) -> Result<Self> {
         let properties = instance.get_physical_device_queue_family_properties(physical_device);
 
         let graphics = properties
