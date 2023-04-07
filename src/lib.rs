@@ -1,14 +1,15 @@
-#![allow(
-    dead_code,
-    unused_variables,
-    clippy::too_many_arguments,
-    clippy::unnecessary_wraps
-)]
+// #![allow(
+//     dead_code,
+//     unused_variables,
+//     clippy::too_many_arguments,
+//     clippy::unnecessary_wraps
+// )]
 
 mod app;
 mod vk_instance;
 mod vk_logical_device;
 mod vk_physical_device;
+mod vk_swapchain;
 
 use winit::dpi::LogicalSize;
 use winit::event::{Event, WindowEvent};

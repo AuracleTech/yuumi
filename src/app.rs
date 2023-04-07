@@ -5,10 +5,11 @@ use winit::window::Window;
 
 use vulkanalia::loader::{LibloadingLoader, LIBRARY};
 use vulkanalia::prelude::v1_0::*;
-use vulkanalia::vk::{ExtDebugUtilsExtension, KhrSurfaceExtension};
+use vulkanalia::vk::{ExtDebugUtilsExtension, KhrSurfaceExtension, KhrSwapchainExtension};
 use vulkanalia::window::create_surface;
 use vulkanalia::Device;
 
+use crate::vk_swapchain::create_swapchain;
 use crate::{vk_instance, vk_logical_device, vk_physical_device, VALIDATION_ENABLED};
 
 /// Our Vulkan app.
@@ -28,11 +29,10 @@ impl App {
         let entry = Entry::new(loader).map_err(|b| anyhow!("{}", b))?;
         let mut data = AppData::default();
         let instance = vk_instance::create_instance(window, &entry, &mut data)?;
-
         data.surface = create_surface(&instance, &event_loop, &window)?;
-
         vk_physical_device::pick_physical_device(&instance, &mut data)?;
         let device = vk_logical_device::create_logical_device(&instance, &mut data)?;
+        create_swapchain(window, &instance, &device, &mut data)?;
         Ok(Self {
             entry,
             instance,
@@ -49,6 +49,7 @@ impl App {
 
     /// Destroys our Vulkan app.
     pub(crate) unsafe fn destroy(&mut self) {
+        self.device.destroy_swapchain_khr(self.data.swapchain, None);
         self.device.destroy_device(None);
 
         if VALIDATION_ENABLED {
@@ -67,4 +68,9 @@ pub(crate) struct AppData {
     pub(crate) messenger: vk::DebugUtilsMessengerEXT,
     pub(crate) physical_device: vk::PhysicalDevice,
     pub(crate) graphics_queue: vk::Queue,
+    pub(crate) present_queue: vk::Queue,
+    pub(crate) swapchain_format: vk::Format,
+    pub(crate) swapchain_extent: vk::Extent2D,
+    pub(crate) swapchain: vk::SwapchainKHR,
+    pub(crate) swapchain_images: Vec<vk::Image>,
 }

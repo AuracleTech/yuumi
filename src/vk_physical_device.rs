@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use log::{info, warn};
 
 use thiserror::Error;
@@ -9,11 +11,31 @@ use vulkanalia::vk::KhrSurfaceExtension;
 use vulkanalia::Instance;
 
 use crate::app::AppData;
+use crate::vk_swapchain::SwapchainSupport;
+
+pub(crate) const DEVICE_EXTENSIONS: &[vk::ExtensionName] = &[vk::KHR_SWAPCHAIN_EXTENSION.name];
 
 #[derive(Debug, Error)]
 #[error("Missing {0}.")]
 pub struct SuitabilityError(pub &'static str);
 
+unsafe fn check_physical_device_extensions(
+    instance: &Instance,
+    physical_device: vk::PhysicalDevice,
+) -> Result<()> {
+    let extensions = instance
+        .enumerate_device_extension_properties(physical_device, None)?
+        .iter()
+        .map(|e| e.extension_name)
+        .collect::<HashSet<_>>();
+    if DEVICE_EXTENSIONS.iter().all(|e| extensions.contains(e)) {
+        Ok(())
+    } else {
+        Err(anyhow!(SuitabilityError(
+            "Missing required device extensions."
+        )))
+    }
+}
 unsafe fn check_physical_device(
     instance: &Instance,
     data: &AppData,
@@ -34,6 +56,13 @@ unsafe fn check_physical_device(
     }
 
     QueueFamilyIndices::get(instance, data, physical_device)?;
+    check_physical_device_extensions(instance, physical_device)?;
+
+    let support = SwapchainSupport::get(instance, data, physical_device)?;
+    if support.formats.is_empty() || support.present_modes.is_empty() {
+        return Err(anyhow!(SuitabilityError("Insufficient swapchain support.")));
+    }
+
     Ok(())
 }
 
@@ -59,7 +88,7 @@ pub(crate) unsafe fn pick_physical_device(instance: &Instance, data: &mut AppDat
 #[derive(Copy, Clone, Debug)]
 pub(crate) struct QueueFamilyIndices {
     pub(crate) graphics: u32,
-    present: u32,
+    pub(crate) present: u32,
 }
 
 impl QueueFamilyIndices {
@@ -71,7 +100,7 @@ impl QueueFamilyIndices {
         let properties = instance.get_physical_device_queue_family_properties(physical_device);
 
         let mut present = None;
-        for (index, properties) in properties.iter().enumerate() {
+        for (index, _properties) in properties.iter().enumerate() {
             if instance.get_physical_device_surface_support_khr(
                 physical_device,
                 index as u32,
