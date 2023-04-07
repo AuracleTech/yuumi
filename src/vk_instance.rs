@@ -2,9 +2,9 @@ use std::collections::HashSet;
 use std::ffi::CStr;
 use std::os::raw::c_void;
 
-use vulkanalia::prelude::v1_0::*;
 use vulkanalia::vk::ExtDebugUtilsExtension;
 use vulkanalia::window as vk_window;
+use vulkanalia::{prelude::v1_0::*, Version};
 
 use winit::window::Window;
 
@@ -13,6 +13,8 @@ use log::*;
 use anyhow::{anyhow, Result};
 
 use crate::{app::AppData, VALIDATION_ENABLED, VALIDATION_LAYER};
+
+const PORTABILITY_MACOS_VERSION: Version = Version::new(1, 3, 216);
 
 extern "system" fn debug_callback(
     severity: vk::DebugUtilsMessageSeverityFlagsEXT,
@@ -69,6 +71,19 @@ pub(crate) unsafe fn create_instance(
         .map(|e| e.as_ptr())
         .collect::<Vec<_>>();
 
+    let flags = if cfg!(target_os = "macos") && entry.version()? >= PORTABILITY_MACOS_VERSION {
+        info!("Enabling extensions for macOS portability.");
+        extensions.push(
+            vk::KHR_GET_PHYSICAL_DEVICE_PROPERTIES2_EXTENSION
+                .name
+                .as_ptr(),
+        );
+        extensions.push(vk::KHR_PORTABILITY_ENUMERATION_EXTENSION.name.as_ptr());
+        vk::InstanceCreateFlags::ENUMERATE_PORTABILITY_KHR
+    } else {
+        vk::InstanceCreateFlags::empty()
+    };
+
     if VALIDATION_ENABLED {
         extensions.push(vk::EXT_DEBUG_UTILS_EXTENSION.name.as_ptr());
     }
@@ -76,7 +91,8 @@ pub(crate) unsafe fn create_instance(
     let mut info = vk::InstanceCreateInfo::builder()
         .application_info(&application_info)
         .enabled_layer_names(&layers)
-        .enabled_extension_names(&extensions);
+        .enabled_extension_names(&extensions)
+        .flags(flags);
 
     let mut debug_info = vk::DebugUtilsMessengerCreateInfoEXT::builder()
         .message_severity(vk::DebugUtilsMessageSeverityFlagsEXT::all())
