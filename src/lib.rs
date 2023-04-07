@@ -39,7 +39,7 @@ pub fn start() -> Result<()> {
 
     // App
 
-    let mut app = unsafe { App::create(&window)? };
+    let mut app = unsafe { App::create(&window, &event_loop)? };
     event_loop.run(move |event, _, control_flow| {
         *control_flow = ControlFlow::Poll;
         match event {
