@@ -9,7 +9,7 @@ use vulkanalia::vk::{ExtDebugUtilsExtension, KhrSurfaceExtension, KhrSwapchainEx
 use vulkanalia::window::create_surface;
 use vulkanalia::Device;
 
-use crate::vk_swapchain::create_swapchain;
+use crate::vk_swapchain::{create_swapchain, create_swapchain_image_views};
 use crate::{vk_instance, vk_logical_device, vk_physical_device, VALIDATION_ENABLED};
 
 /// Our Vulkan app.
@@ -33,6 +33,7 @@ impl App {
         vk_physical_device::pick_physical_device(&instance, &mut data)?;
         let device = vk_logical_device::create_logical_device(&instance, &mut data)?;
         create_swapchain(window, &instance, &device, &mut data)?;
+        create_swapchain_image_views(&device, &mut data)?;
         Ok(Self {
             entry,
             instance,
@@ -49,6 +50,10 @@ impl App {
 
     /// Destroys our Vulkan app.
     pub(crate) unsafe fn destroy(&mut self) {
+        self.data
+            .swapchain_image_views
+            .iter()
+            .for_each(|v| self.device.destroy_image_view(*v, None));
         self.device.destroy_swapchain_khr(self.data.swapchain, None);
         self.device.destroy_device(None);
 
@@ -73,4 +78,5 @@ pub(crate) struct AppData {
     pub(crate) swapchain_extent: vk::Extent2D,
     pub(crate) swapchain: vk::SwapchainKHR,
     pub(crate) swapchain_images: Vec<vk::Image>,
+    pub(crate) swapchain_image_views: Vec<vk::ImageView>,
 }
