@@ -6,9 +6,12 @@
 // )]
 
 mod app;
+mod vk_framebuffer;
 mod vk_instance;
 mod vk_logical_device;
 mod vk_physical_device;
+mod vk_pipeline;
+mod vk_render_pass;
 mod vk_swapchain;
 
 use winit::dpi::LogicalSize;
@@ -40,7 +43,7 @@ pub fn start() -> Result<()> {
 
     // App
 
-    let mut app = unsafe { App::create(&window, &event_loop)? };
+    let mut app = unsafe { App::create(&window)? };
     event_loop.run(move |event, _, control_flow| {
         *control_flow = ControlFlow::Poll;
         match event {

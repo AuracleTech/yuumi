@@ -1,6 +1,5 @@
 use anyhow::{anyhow, Result};
 
-use winit::event_loop::EventLoop;
 use winit::window::Window;
 
 use vulkanalia::loader::{LibloadingLoader, LIBRARY};
@@ -9,13 +8,16 @@ use vulkanalia::vk::{ExtDebugUtilsExtension, KhrSurfaceExtension, KhrSwapchainEx
 use vulkanalia::window::create_surface;
 use vulkanalia::Device;
 
+use crate::vk_framebuffer::create_framebuffers;
+use crate::vk_pipeline::create_pipeline;
+use crate::vk_render_pass::create_render_pass;
 use crate::vk_swapchain::{create_swapchain, create_swapchain_image_views};
 use crate::{vk_instance, vk_logical_device, vk_physical_device, VALIDATION_ENABLED};
 
 /// Our Vulkan app.
 #[derive(Clone, Debug)]
 pub(crate) struct App {
-    entry: Entry,
+    _entry: Entry,
     instance: Instance,
     data: AppData,
     device: Device,
@@ -24,18 +26,23 @@ pub(crate) struct App {
 
 impl App {
     /// Creates our Vulkan app.
-    pub(crate) unsafe fn create(window: &Window, event_loop: &EventLoop<()>) -> Result<Self> {
+    pub(crate) unsafe fn create(window: &Window) -> Result<Self> {
         let loader = LibloadingLoader::new(LIBRARY)?;
-        let entry = Entry::new(loader).map_err(|b| anyhow!("{}", b))?;
+        let _entry = Entry::new(loader).map_err(|b| anyhow!("{}", b))?;
         let mut data = AppData::default();
-        let instance = vk_instance::create_instance(window, &entry, &mut data)?;
-        data.surface = create_surface(&instance, &event_loop, &window)?;
+        let instance = vk_instance::create_instance(window, &_entry, &mut data)?;
+        data.surface = create_surface(&instance, &window, &window)?;
         vk_physical_device::pick_physical_device(&instance, &mut data)?;
         let device = vk_logical_device::create_logical_device(&instance, &mut data)?;
         create_swapchain(window, &instance, &device, &mut data)?;
         create_swapchain_image_views(&device, &mut data)?;
+        create_render_pass(&device, &mut data)?;
+        let layout_info = vk::PipelineLayoutCreateInfo::builder();
+        data.pipeline_layout = device.create_pipeline_layout(&layout_info, None)?;
+        create_pipeline(&device, &mut data)?;
+        create_framebuffers(&device, &mut data)?;
         Ok(Self {
-            entry,
+            _entry,
             instance,
             data,
             device,
@@ -44,12 +51,20 @@ impl App {
     }
 
     /// Renders a frame for our Vulkan app.
-    pub(crate) unsafe fn render(&mut self, window: &Window) -> Result<()> {
+    pub(crate) unsafe fn render(&mut self, _window: &Window) -> Result<()> {
         Ok(())
     }
 
     /// Destroys our Vulkan app.
     pub(crate) unsafe fn destroy(&mut self) {
+        self.data
+            .framebuffers
+            .iter()
+            .for_each(|f| self.device.destroy_framebuffer(*f, None));
+        self.device.destroy_pipeline(self.data.pipeline, None);
+        self.device
+            .destroy_pipeline_layout(self.data.pipeline_layout, None);
+        self.device.destroy_render_pass(self.data.render_pass, None);
         self.data
             .swapchain_image_views
             .iter()
@@ -79,4 +94,8 @@ pub(crate) struct AppData {
     pub(crate) swapchain: vk::SwapchainKHR,
     pub(crate) swapchain_images: Vec<vk::Image>,
     pub(crate) swapchain_image_views: Vec<vk::ImageView>,
+    pub(crate) render_pass: vk::RenderPass,
+    pub(crate) pipeline_layout: vk::PipelineLayout,
+    pub(crate) pipeline: vk::Pipeline,
+    pub(crate) framebuffers: Vec<vk::Framebuffer>,
 }
