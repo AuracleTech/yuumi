@@ -13,6 +13,7 @@ use crate::vk_framebuffer::create_framebuffers;
 use crate::vk_pipeline::create_pipeline;
 use crate::vk_render_pass::create_render_pass;
 use crate::vk_swapchain::{create_swapchain, create_swapchain_image_views};
+use crate::vk_sync_object::create_sync_objects;
 use crate::{vk_instance, vk_logical_device, vk_physical_device, VALIDATION_ENABLED};
 
 /// Our Vulkan app.
@@ -21,7 +22,7 @@ pub(crate) struct App {
     _entry: Entry,
     instance: Instance,
     data: AppData,
-    device: Device,
+    pub(crate) device: Device,
     pub(crate) destroying: bool,
 }
 
@@ -44,6 +45,7 @@ impl App {
         create_framebuffers(&device, &mut data)?;
         create_command_pool(&instance, &device, &mut data)?;
         create_command_buffers(&device, &mut data)?;
+        create_sync_objects(&device, &mut data)?;
         Ok(Self {
             _entry,
             instance,
@@ -55,11 +57,50 @@ impl App {
 
     /// Renders a frame for our Vulkan app.
     pub(crate) unsafe fn render(&mut self, _window: &Window) -> Result<()> {
+        let image_index = self
+            .device
+            .acquire_next_image_khr(
+                self.data.swapchain,
+                u64::max_value(),
+                self.data.image_available_semaphore,
+                vk::Fence::null(),
+            )?
+            .0 as usize;
+
+        let wait_semaphores = &[self.data.image_available_semaphore];
+        let wait_stages = &[vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT];
+        let command_buffers = &[self.data.command_buffers[image_index as usize]];
+        let signal_semaphores = &[self.data.render_finished_semaphore];
+        let submit_info = vk::SubmitInfo::builder()
+            .wait_semaphores(wait_semaphores)
+            .wait_dst_stage_mask(wait_stages)
+            .command_buffers(command_buffers)
+            .signal_semaphores(signal_semaphores)
+            .build();
+
+        self.device
+            .queue_submit(self.data.graphics_queue, &[submit_info], vk::Fence::null())?;
+
+        let swapchains = &[self.data.swapchain];
+        let image_indices = &[image_index as u32];
+        let present_info = vk::PresentInfoKHR::builder()
+            .wait_semaphores(signal_semaphores)
+            .swapchains(swapchains)
+            .image_indices(image_indices)
+            .build();
+
+        self.device
+            .queue_present_khr(self.data.present_queue, &present_info)?;
+
         Ok(())
     }
 
     /// Destroys our Vulkan app.
     pub(crate) unsafe fn destroy(&mut self) {
+        self.device
+            .destroy_semaphore(self.data.render_finished_semaphore, None);
+        self.device
+            .destroy_semaphore(self.data.image_available_semaphore, None);
         self.device
             .destroy_command_pool(self.data.command_pool, None);
         self.data
@@ -105,4 +146,6 @@ pub(crate) struct AppData {
     pub(crate) framebuffers: Vec<vk::Framebuffer>,
     pub(crate) command_pool: vk::CommandPool,
     pub(crate) command_buffers: Vec<vk::CommandBuffer>,
+    pub(crate) image_available_semaphore: vk::Semaphore,
+    pub(crate) render_finished_semaphore: vk::Semaphore,
 }

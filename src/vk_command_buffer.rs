@@ -28,11 +28,13 @@ pub(crate) unsafe fn create_command_buffers(device: &Device, data: &mut AppData)
 
     data.command_buffers = device.allocate_command_buffers(&allocate_info)?;
 
+    let flags = vk::CommandBufferUsageFlags::SIMULTANEOUS_USE;
+
     for (i, command_buffer) in data.command_buffers.iter().enumerate() {
         let inheritance = vk::CommandBufferInheritanceInfo::builder();
 
         let info = vk::CommandBufferBeginInfo::builder()
-            .flags(vk::CommandBufferUsageFlags::empty()) // Optional.
+            .flags(flags) // Optional.
             .inheritance_info(&inheritance); // Optional.
 
         device.begin_command_buffer(*command_buffer, &info)?;

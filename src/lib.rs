@@ -14,6 +14,7 @@ mod vk_physical_device;
 mod vk_pipeline;
 mod vk_render_pass;
 mod vk_swapchain;
+mod vk_sync_object;
 
 use winit::dpi::LogicalSize;
 use winit::event::{Event, WindowEvent};
@@ -57,6 +58,9 @@ pub fn start() -> Result<()> {
             } => {
                 app.destroying = true;
                 *control_flow = ControlFlow::Exit;
+                unsafe {
+                    app.device.device_wait_idle().unwrap();
+                }
                 unsafe {
                     app.destroy();
                 }
