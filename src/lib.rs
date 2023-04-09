@@ -6,6 +6,7 @@
 // )]
 
 mod app;
+mod vk_command_buffer;
 mod vk_framebuffer;
 mod vk_instance;
 mod vk_logical_device;

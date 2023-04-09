@@ -8,6 +8,7 @@ use vulkanalia::vk::{ExtDebugUtilsExtension, KhrSurfaceExtension, KhrSwapchainEx
 use vulkanalia::window::create_surface;
 use vulkanalia::Device;
 
+use crate::vk_command_buffer::{create_command_buffers, create_command_pool};
 use crate::vk_framebuffer::create_framebuffers;
 use crate::vk_pipeline::create_pipeline;
 use crate::vk_render_pass::create_render_pass;
@@ -41,6 +42,8 @@ impl App {
         data.pipeline_layout = device.create_pipeline_layout(&layout_info, None)?;
         create_pipeline(&device, &mut data)?;
         create_framebuffers(&device, &mut data)?;
+        create_command_pool(&instance, &device, &mut data)?;
+        create_command_buffers(&device, &mut data)?;
         Ok(Self {
             _entry,
             instance,
@@ -57,6 +60,8 @@ impl App {
 
     /// Destroys our Vulkan app.
     pub(crate) unsafe fn destroy(&mut self) {
+        self.device
+            .destroy_command_pool(self.data.command_pool, None);
         self.data
             .framebuffers
             .iter()
@@ -98,4 +103,6 @@ pub(crate) struct AppData {
     pub(crate) pipeline_layout: vk::PipelineLayout,
     pub(crate) pipeline: vk::Pipeline,
     pub(crate) framebuffers: Vec<vk::Framebuffer>,
+    pub(crate) command_pool: vk::CommandPool,
+    pub(crate) command_buffers: Vec<vk::CommandBuffer>,
 }
