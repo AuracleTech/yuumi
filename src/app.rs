@@ -32,7 +32,6 @@ pub(crate) struct App {
 }
 
 impl App {
-    /// Creates our Vulkan app.
     pub(crate) unsafe fn create(window: &Window) -> Result<Self> {
         let loader = LibloadingLoader::new(LIBRARY)?;
         let _entry = Entry::new(loader).map_err(|b| anyhow!("{}", b))?;
@@ -62,14 +61,15 @@ impl App {
         })
     }
 
-    /// Renders a frame for our Vulkan app.
     pub(crate) unsafe fn render(&mut self, _window: &Window) -> Result<()> {
+        // We wait for the fence of the current frame to finish executing. This is because we're going to re-use this frame's resources.
         self.device.wait_for_fences(
             &[self.data.in_flight_fences[self.frame]],
             true,
             u64::max_value(),
         )?;
 
+        // We acquire an image from the swap chain. This is the image that we're going to render to.
         let image_index = self
             .device
             .acquire_next_image_khr(
@@ -80,6 +80,7 @@ impl App {
             )?
             .0 as usize;
 
+        // We check if the image is in use. If it is, we wait for it to finish.
         if !self.data.images_in_flight[image_index as usize].is_null() {
             self.device.wait_for_fences(
                 &[self.data.images_in_flight[image_index as usize]],
@@ -88,8 +89,10 @@ impl App {
             )?;
         }
 
+        // We mark the image as in use.
         self.data.images_in_flight[image_index as usize] = self.data.in_flight_fences[self.frame];
 
+        // We build the submit info that we're going to use to submit to the graphics queue.
         let wait_semaphores = &[self.data.image_available_semaphores[self.frame]];
         let wait_stages = &[vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT];
         let command_buffers = &[self.data.command_buffers[image_index as usize]];
@@ -101,15 +104,18 @@ impl App {
             .signal_semaphores(signal_semaphores)
             .build();
 
+        // We reset the fence of the current frame. This is because we're going to re-use this frame's resources.
         self.device
             .reset_fences(&[self.data.in_flight_fences[self.frame]])?;
 
+        // We submit the command buffer to the graphics queue.
         self.device.queue_submit(
             self.data.graphics_queue,
             &[submit_info],
             self.data.in_flight_fences[self.frame],
         )?;
 
+        // We build the present info that we're going to use to present.
         let swapchains = &[self.data.swapchain];
         let image_indices = &[image_index as u32];
         let present_info = vk::PresentInfoKHR::builder()
@@ -118,10 +124,14 @@ impl App {
             .image_indices(image_indices)
             .build();
 
+        //  We present the image.
         self.device
             .queue_present_khr(self.data.present_queue, &present_info)?;
 
+        // We increment the frame counter.
         self.total_frames += 1;
+
+        // We increment the frame index.
         self.frame = (self.frame + 1) % MAX_FRAMES_IN_FLIGHT;
 
         Ok(())
