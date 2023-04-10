@@ -24,6 +24,7 @@ pub(crate) struct App {
     data: AppData,
     pub(crate) device: Device,
     pub(crate) destroying: bool,
+    pub(crate) total_frames: u64,
 }
 
 impl App {
@@ -52,6 +53,7 @@ impl App {
             data,
             device,
             destroying: false,
+            total_frames: 0,
         })
     }
 
@@ -91,6 +93,8 @@ impl App {
 
         self.device
             .queue_present_khr(self.data.present_queue, &present_info)?;
+
+        self.total_frames += 1;
 
         Ok(())
     }
