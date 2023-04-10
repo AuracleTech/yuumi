@@ -10,11 +10,14 @@ use vulkanalia::Device;
 
 use crate::vk_command_buffer::{create_command_buffers, create_command_pool};
 use crate::vk_framebuffer::create_framebuffers;
+use crate::vk_instance::create_instance;
+use crate::vk_logical_device::create_logical_device;
+use crate::vk_physical_device::pick_physical_device;
 use crate::vk_pipeline::create_pipeline;
 use crate::vk_render_pass::create_render_pass;
 use crate::vk_swapchain::{create_swapchain, create_swapchain_image_views};
 use crate::vk_sync_object::create_sync_objects;
-use crate::{vk_instance, vk_logical_device, vk_physical_device, VALIDATION_ENABLED};
+use crate::{MAX_FRAMES_IN_FLIGHT, VALIDATION_ENABLED};
 
 /// Our Vulkan app.
 #[derive(Clone, Debug)]
@@ -25,6 +28,7 @@ pub(crate) struct App {
     pub(crate) device: Device,
     pub(crate) destroying: bool,
     pub(crate) total_frames: u64,
+    pub(crate) frame: usize,
 }
 
 impl App {
@@ -33,10 +37,10 @@ impl App {
         let loader = LibloadingLoader::new(LIBRARY)?;
         let _entry = Entry::new(loader).map_err(|b| anyhow!("{}", b))?;
         let mut data = AppData::default();
-        let instance = vk_instance::create_instance(window, &_entry, &mut data)?;
+        let instance = create_instance(window, &_entry, &mut data)?;
         data.surface = create_surface(&instance, &window, &window)?;
-        vk_physical_device::pick_physical_device(&instance, &mut data)?;
-        let device = vk_logical_device::create_logical_device(&instance, &mut data)?;
+        pick_physical_device(&instance, &mut data)?;
+        let device = create_logical_device(&instance, &mut data)?;
         create_swapchain(window, &instance, &device, &mut data)?;
         create_swapchain_image_views(&device, &mut data)?;
         create_render_pass(&device, &mut data)?;
@@ -54,25 +58,42 @@ impl App {
             device,
             destroying: false,
             total_frames: 0,
+            frame: 0,
         })
     }
 
     /// Renders a frame for our Vulkan app.
     pub(crate) unsafe fn render(&mut self, _window: &Window) -> Result<()> {
+        self.device.wait_for_fences(
+            &[self.data.in_flight_fences[self.frame]],
+            true,
+            u64::max_value(),
+        )?;
+
         let image_index = self
             .device
             .acquire_next_image_khr(
                 self.data.swapchain,
                 u64::max_value(),
-                self.data.image_available_semaphore,
+                self.data.image_available_semaphores[self.frame],
                 vk::Fence::null(),
             )?
             .0 as usize;
 
-        let wait_semaphores = &[self.data.image_available_semaphore];
+        if !self.data.images_in_flight[image_index as usize].is_null() {
+            self.device.wait_for_fences(
+                &[self.data.images_in_flight[image_index as usize]],
+                true,
+                u64::max_value(),
+            )?;
+        }
+
+        self.data.images_in_flight[image_index as usize] = self.data.in_flight_fences[self.frame];
+
+        let wait_semaphores = &[self.data.image_available_semaphores[self.frame]];
         let wait_stages = &[vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT];
         let command_buffers = &[self.data.command_buffers[image_index as usize]];
-        let signal_semaphores = &[self.data.render_finished_semaphore];
+        let signal_semaphores = &[self.data.render_finished_semaphores[self.frame]];
         let submit_info = vk::SubmitInfo::builder()
             .wait_semaphores(wait_semaphores)
             .wait_dst_stage_mask(wait_stages)
@@ -81,7 +102,13 @@ impl App {
             .build();
 
         self.device
-            .queue_submit(self.data.graphics_queue, &[submit_info], vk::Fence::null())?;
+            .reset_fences(&[self.data.in_flight_fences[self.frame]])?;
+
+        self.device.queue_submit(
+            self.data.graphics_queue,
+            &[submit_info],
+            self.data.in_flight_fences[self.frame],
+        )?;
 
         let swapchains = &[self.data.swapchain];
         let image_indices = &[image_index as u32];
@@ -95,16 +122,25 @@ impl App {
             .queue_present_khr(self.data.present_queue, &present_info)?;
 
         self.total_frames += 1;
+        self.frame = (self.frame + 1) % MAX_FRAMES_IN_FLIGHT;
 
         Ok(())
     }
 
     /// Destroys our Vulkan app.
     pub(crate) unsafe fn destroy(&mut self) {
-        self.device
-            .destroy_semaphore(self.data.render_finished_semaphore, None);
-        self.device
-            .destroy_semaphore(self.data.image_available_semaphore, None);
+        self.data
+            .in_flight_fences
+            .iter()
+            .for_each(|f| self.device.destroy_fence(*f, None));
+        self.data
+            .render_finished_semaphores
+            .iter()
+            .for_each(|s| self.device.destroy_semaphore(*s, None));
+        self.data
+            .image_available_semaphores
+            .iter()
+            .for_each(|s| self.device.destroy_semaphore(*s, None));
         self.device
             .destroy_command_pool(self.data.command_pool, None);
         self.data
@@ -150,6 +186,8 @@ pub(crate) struct AppData {
     pub(crate) framebuffers: Vec<vk::Framebuffer>,
     pub(crate) command_pool: vk::CommandPool,
     pub(crate) command_buffers: Vec<vk::CommandBuffer>,
-    pub(crate) image_available_semaphore: vk::Semaphore,
-    pub(crate) render_finished_semaphore: vk::Semaphore,
+    pub(crate) image_available_semaphores: Vec<vk::Semaphore>,
+    pub(crate) render_finished_semaphores: Vec<vk::Semaphore>,
+    pub(crate) in_flight_fences: Vec<vk::Fence>,
+    pub(crate) images_in_flight: Vec<vk::Fence>,
 }

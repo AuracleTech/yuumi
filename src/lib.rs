@@ -27,6 +27,8 @@ use anyhow::Result;
 
 use app::App;
 
+const MAX_FRAMES_IN_FLIGHT: usize = 2;
+
 const VALIDATION_ENABLED: bool = cfg!(debug_assertions);
 
 const VALIDATION_LAYER: vk::ExtensionName =
