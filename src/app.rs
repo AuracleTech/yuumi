@@ -61,6 +61,38 @@ impl App {
         })
     }
 
+    pub(crate) unsafe fn recreate_swapchain(&mut self, window: &Window) -> Result<()> {
+        self.device.device_wait_idle()?;
+        create_swapchain(window, &self.instance, &self.device, &mut self.data)?;
+        create_swapchain_image_views(&self.device, &mut self.data)?;
+        create_render_pass(&self.device, &mut self.data)?;
+        create_pipeline(&self.device, &mut self.data)?;
+        create_framebuffers(&self.device, &mut self.data)?;
+        create_command_buffers(&self.device, &mut self.data)?;
+        self.data
+            .images_in_flight
+            .resize(self.data.swapchain_images.len(), vk::Fence::null());
+        Ok(())
+    }
+
+    unsafe fn destroy_swapchain(&mut self) {
+        self.data
+            .framebuffers
+            .iter()
+            .for_each(|f| self.device.destroy_framebuffer(*f, None));
+        self.device
+            .free_command_buffers(self.data.command_pool, &self.data.command_buffers);
+        self.device.destroy_pipeline(self.data.pipeline, None);
+        self.device
+            .destroy_pipeline_layout(self.data.pipeline_layout, None);
+        self.device.destroy_render_pass(self.data.render_pass, None);
+        self.data
+            .swapchain_image_views
+            .iter()
+            .for_each(|v| self.device.destroy_image_view(*v, None));
+        self.device.destroy_swapchain_khr(self.data.swapchain, None);
+    }
+
     pub(crate) unsafe fn render(&mut self, _window: &Window) -> Result<()> {
         // We wait for the fence of the current frame to finish executing. This is because we're going to re-use this frame's resources.
         self.device.wait_for_fences(
@@ -139,6 +171,8 @@ impl App {
 
     /// Destroys our Vulkan app.
     pub(crate) unsafe fn destroy(&mut self) {
+        self.destroy_swapchain();
+
         self.data
             .in_flight_fences
             .iter()
@@ -153,26 +187,14 @@ impl App {
             .for_each(|s| self.device.destroy_semaphore(*s, None));
         self.device
             .destroy_command_pool(self.data.command_pool, None);
-        self.data
-            .framebuffers
-            .iter()
-            .for_each(|f| self.device.destroy_framebuffer(*f, None));
-        self.device.destroy_pipeline(self.data.pipeline, None);
-        self.device
-            .destroy_pipeline_layout(self.data.pipeline_layout, None);
-        self.device.destroy_render_pass(self.data.render_pass, None);
-        self.data
-            .swapchain_image_views
-            .iter()
-            .for_each(|v| self.device.destroy_image_view(*v, None));
-        self.device.destroy_swapchain_khr(self.data.swapchain, None);
         self.device.destroy_device(None);
+        self.instance.destroy_surface_khr(self.data.surface, None);
 
         if VALIDATION_ENABLED {
             self.instance
                 .destroy_debug_utils_messenger_ext(self.data.messenger, None);
         }
-        self.instance.destroy_surface_khr(self.data.surface, None);
+
         self.instance.destroy_instance(None);
     }
 }
