@@ -6,6 +6,9 @@ use vulkanalia::Device;
 use crate::app::AppData;
 
 pub(crate) unsafe fn create_pipeline(device: &Device, data: &mut AppData) -> Result<()> {
+    let layout_info = vk::PipelineLayoutCreateInfo::builder();
+    data.pipeline_layout = device.create_pipeline_layout(&layout_info, None)?;
+
     let vert = include_bytes!("../assets/shaders/vert.spv");
     let frag = include_bytes!("../assets/shaders/frag.spv");
 

@@ -52,7 +52,9 @@ pub fn start() -> Result<()> {
         *control_flow = ControlFlow::Poll;
         match event {
             // Render a frame if our Vulkan app is not being destroyed.
-            Event::MainEventsCleared if !app.destroying => unsafe { app.render(&window) }.unwrap(),
+            Event::MainEventsCleared if !app.destroying && !app.minimized => {
+                unsafe { app.render(&window) }.unwrap()
+            }
             // Destroy our Vulkan app.
             Event::WindowEvent {
                 event: WindowEvent::CloseRequested,
@@ -65,6 +67,17 @@ pub fn start() -> Result<()> {
                 }
                 unsafe {
                     app.destroy();
+                }
+            }
+            Event::WindowEvent {
+                event: WindowEvent::Resized(size),
+                ..
+            } => {
+                if size.width == 0 || size.height == 0 {
+                    app.minimized = true;
+                } else {
+                    app.minimized = false;
+                    app.resized = true;
                 }
             }
             _ => {}

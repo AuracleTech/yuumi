@@ -29,6 +29,8 @@ pub(crate) struct App {
     pub(crate) destroying: bool,
     pub(crate) total_frames: u64,
     pub(crate) frame: usize,
+    pub(crate) resized: bool,
+    pub(crate) minimized: bool,
 }
 
 impl App {
@@ -43,8 +45,6 @@ impl App {
         create_swapchain(window, &instance, &device, &mut data)?;
         create_swapchain_image_views(&device, &mut data)?;
         create_render_pass(&device, &mut data)?;
-        let layout_info = vk::PipelineLayoutCreateInfo::builder();
-        data.pipeline_layout = device.create_pipeline_layout(&layout_info, None)?;
         create_pipeline(&device, &mut data)?;
         create_framebuffers(&device, &mut data)?;
         create_command_pool(&instance, &device, &mut data)?;
@@ -58,11 +58,14 @@ impl App {
             destroying: false,
             total_frames: 0,
             frame: 0,
+            resized: false,
+            minimized: false,
         })
     }
 
     pub(crate) unsafe fn recreate_swapchain(&mut self, window: &Window) -> Result<()> {
         self.device.device_wait_idle()?;
+        self.destroy_swapchain();
         create_swapchain(window, &self.instance, &self.device, &mut self.data)?;
         create_swapchain_image_views(&self.device, &mut self.data)?;
         create_render_pass(&self.device, &mut self.data)?;
@@ -93,7 +96,7 @@ impl App {
         self.device.destroy_swapchain_khr(self.data.swapchain, None);
     }
 
-    pub(crate) unsafe fn render(&mut self, _window: &Window) -> Result<()> {
+    pub(crate) unsafe fn render(&mut self, window: &Window) -> Result<()> {
         // We wait for the fence of the current frame to finish executing. This is because we're going to re-use this frame's resources.
         self.device.wait_for_fences(
             &[self.data.in_flight_fences[self.frame]],
@@ -101,16 +104,20 @@ impl App {
             u64::max_value(),
         )?;
 
-        // We acquire an image from the swap chain. This is the image that we're going to render to.
-        let image_index = self
-            .device
-            .acquire_next_image_khr(
-                self.data.swapchain,
-                u64::max_value(),
-                self.data.image_available_semaphores[self.frame],
-                vk::Fence::null(),
-            )?
-            .0 as usize;
+        // We acquire the next image from the swapchain.
+        let result = self.device.acquire_next_image_khr(
+            self.data.swapchain,
+            u64::max_value(),
+            self.data.image_available_semaphores[self.frame],
+            vk::Fence::null(),
+        );
+
+        // We check if the swapchain is out of date. If it is, we recreate it.
+        let image_index = match result {
+            Ok((image_index, _)) => image_index as usize,
+            Err(vk::ErrorCode::OUT_OF_DATE_KHR) => return self.recreate_swapchain(window),
+            Err(e) => return Err(anyhow!(e)),
+        };
 
         // We check if the image is in use. If it is, we wait for it to finish.
         if !self.data.images_in_flight[image_index as usize].is_null() {
@@ -156,9 +163,19 @@ impl App {
             .image_indices(image_indices)
             .build();
 
-        //  We present the image.
-        self.device
-            .queue_present_khr(self.data.present_queue, &present_info)?;
+        //  We present the image to the screen.
+        let result = self
+            .device
+            .queue_present_khr(self.data.present_queue, &present_info);
+
+        let changed = result == Ok(vk::SuccessCode::SUBOPTIMAL_KHR)
+            || result == Err(vk::ErrorCode::OUT_OF_DATE_KHR);
+
+        if self.resized || changed {
+            self.recreate_swapchain(window)?;
+        } else if let Err(e) = result {
+            return Err(anyhow!(e));
+        }
 
         // We increment the frame counter.
         self.total_frames += 1;
