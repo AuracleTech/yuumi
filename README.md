@@ -7,4 +7,12 @@
 
 # WORK IN PROGRESS
 
-Me, a developer, have come to the realization that development is an excruciatingly arduous task. The constant pressure to meet deadlines and produce high-quality code is overwhelming. The endless stream of bugs and errors make me feel like I'm stuck in a never-ending cycle of frustration. The clients, always asking for more and more features, with no regard for the complexity it adds to the codebase. The managers, pushing for more work in less time, with no understanding of the difficulties of writing quality code. The technology landscape constantly shifting, leaving me feeling lost and confused in a sea of jargon and acronyms. I long for the days where development was simple, where code was easy to read and understand. Now, it feels like an insurmountable task, one that drains me of my energy and leaves me feeling defeated. I wish I could escape this world of code, but I know that is not an option. I must continue to trudge through this endless sea of bugs and errors, hoping that one day I will emerge on the other side with a piece of code that actually works. And yet, despite all of the challenges and difficulties, I cannot deny the satisfaction that comes from finally solving a complex coding problem.
+Programming a game engine, my ultimate quest
+For I dream of games, that are truly the best
+Years of hard work, I've poured into this goal
+Yet the path seems endless, without any control
+
+I know that the journey is long and winding
+Know that the path ahead is steep and daunting
+Absolutely, I'll keep on striving
+Nothing will deter me, that's my thing
