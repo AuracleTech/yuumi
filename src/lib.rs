@@ -6,6 +6,7 @@
 // )]
 
 mod app;
+mod vertex;
 mod vk_command_buffer;
 mod vk_framebuffer;
 mod vk_instance;
@@ -15,6 +16,7 @@ mod vk_pipeline;
 mod vk_render_pass;
 mod vk_swapchain;
 mod vk_sync_object;
+mod vk_vertex_buffer;
 
 use winit::dpi::LogicalSize;
 use winit::event::{Event, WindowEvent};

@@ -2,7 +2,7 @@ use anyhow::Result;
 
 use vulkanalia::prelude::v1_0::*;
 
-use crate::{app::AppData, vk_physical_device::QueueFamilyIndices};
+use crate::{app::AppData, vertex::VERTICES, vk_physical_device::QueueFamilyIndices};
 
 pub(crate) unsafe fn create_command_pool(
     instance: &Instance,
@@ -64,7 +64,8 @@ pub(crate) unsafe fn create_command_buffers(device: &Device, data: &mut AppData)
             data.pipeline,
         );
 
-        device.cmd_draw(*command_buffer, 3, 1, 0, 0);
+        device.cmd_bind_vertex_buffers(*command_buffer, 0, &[data.vertex_buffer], &[0]);
+        device.cmd_draw(*command_buffer, VERTICES.len() as u32, 1, 0, 0);
 
         device.cmd_end_render_pass(*command_buffer);
 

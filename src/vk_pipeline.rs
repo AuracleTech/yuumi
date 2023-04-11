@@ -4,13 +4,14 @@ use vulkanalia::prelude::v1_0::*;
 use vulkanalia::Device;
 
 use crate::app::AppData;
+use crate::vertex::Vertex;
 
 pub(crate) unsafe fn create_pipeline(device: &Device, data: &mut AppData) -> Result<()> {
     let layout_info = vk::PipelineLayoutCreateInfo::builder();
     data.pipeline_layout = device.create_pipeline_layout(&layout_info, None)?;
 
-    let vert = include_bytes!("../assets/shaders/vert.spv");
-    let frag = include_bytes!("../assets/shaders/frag.spv");
+    let vert = include_bytes!("../data/vert.spv");
+    let frag = include_bytes!("../data/frag.spv");
 
     let vert_shader_module = create_shader_module(device, &vert[..])?;
     let frag_shader_module = create_shader_module(device, &frag[..])?;
@@ -25,7 +26,11 @@ pub(crate) unsafe fn create_pipeline(device: &Device, data: &mut AppData) -> Res
         .module(frag_shader_module)
         .name(b"main\0");
 
-    let vertex_input_state = vk::PipelineVertexInputStateCreateInfo::builder();
+    let binding_descriptions = &[Vertex::binding_description()];
+    let attribute_descriptions = Vertex::attribute_descriptions();
+    let vertex_input_state = vk::PipelineVertexInputStateCreateInfo::builder()
+        .vertex_binding_descriptions(binding_descriptions)
+        .vertex_attribute_descriptions(&attribute_descriptions);
 
     let input_assembly_state = vk::PipelineInputAssemblyStateCreateInfo::builder()
         .topology(vk::PrimitiveTopology::TRIANGLE_LIST)
