@@ -5,14 +5,16 @@
 ![LANG BADGE](https://img.shields.io/github/languages/top/AuracleTech/titan?style=flat-square)
 ![LICENSE](https://img.shields.io/bower/l/bootstrap?style=flat-square)
 
-# WORK IN PROGRESS
+# EARLY DEVELOPMENT STAGE
 
-Programming a game engine, my ultimate quest
-For I dream of games, that are truly the best
-Years of hard work, I've poured into this goal
+```javascript
+Programming a game engine, the ultimate quest
+For we are the ones, who will make it best
+Years vanish working on such goal
 Yet the path seems endless, without any control
 
-I know that the journey is long and winding
-Know that the path ahead is steep and daunting
-Absolutely, I'll keep on striving
-Nothing will deter me, that's my thing
+We know the journey is long and never ending
+Know that the path is steep and very daunting
+Absolutely unfeasible, but we are still trying
+Nothing will stop us, just keep on thriving
+```
