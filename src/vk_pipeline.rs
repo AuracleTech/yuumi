@@ -10,8 +10,8 @@ pub(crate) unsafe fn create_pipeline(device: &Device, data: &mut AppData) -> Res
     let layout_info = vk::PipelineLayoutCreateInfo::builder();
     data.pipeline_layout = device.create_pipeline_layout(&layout_info, None)?;
 
-    let vert = include_bytes!("../data/vert.spv");
-    let frag = include_bytes!("../data/frag.spv");
+    let vert = include_bytes!("../lib/vert.spv");
+    let frag = include_bytes!("../lib/frag.spv");
 
     let vert_shader_module = create_shader_module(device, &vert[..])?;
     let frag_shader_module = create_shader_module(device, &frag[..])?;
