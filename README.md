@@ -11,7 +11,7 @@
 Programming a game engine, the ultimate quest
 For we are the ones, who will make it best
 Years vanish working on such goal
-Yet the path seems endless, without any control
+Yet we persist, never losing control
 
 We know the journey is long and never ending
 Know that the path is steep and very daunting
