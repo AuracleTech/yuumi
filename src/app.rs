@@ -20,7 +20,7 @@ use crate::vk_pipeline::create_pipeline;
 use crate::vk_render_pass::create_render_pass;
 use crate::vk_swapchain::{create_swapchain, create_swapchain_image_views};
 use crate::vk_sync_object::create_sync_objects;
-use crate::vk_vertex_buffer::create_vertex_buffer;
+use crate::vk_vertex_buffer::{create_index_buffer, create_vertex_buffer};
 use crate::{MAX_FRAMES_IN_FLIGHT, VALIDATION_ENABLED};
 
 /// Our Vulkan app.
@@ -55,6 +55,7 @@ impl App {
         create_framebuffers(&device, &mut data)?;
         create_command_pool(&instance, &device, &mut data)?;
         create_vertex_buffer(&instance, &device, &mut data)?;
+        create_index_buffer(&instance, &device, &mut data)?;
         create_command_buffers(&device, &mut data)?;
         create_sync_objects(&device, &mut data)?;
         Ok(Self {
@@ -203,9 +204,11 @@ impl App {
         self.device.destroy_swapchain_khr(self.data.swapchain, None);
     }
 
-    /// Destroys our Vulkan app.
     pub(crate) unsafe fn destroy(&mut self) {
         self.destroy_swapchain();
+        self.device.destroy_buffer(self.data.vertex_buffer, None);
+        self.device
+            .free_memory(self.data.vertex_buffer_memory, None);
         self.device.destroy_buffer(self.data.vertex_buffer, None);
         self.device
             .free_memory(self.data.vertex_buffer_memory, None);
@@ -259,6 +262,9 @@ pub(crate) struct AppData {
     pub(crate) render_finished_semaphores: Vec<vk::Semaphore>,
     pub(crate) in_flight_fences: Vec<vk::Fence>,
     pub(crate) images_in_flight: Vec<vk::Fence>,
+    // OPTIMIZE Use a single buffer for multiple buffers. Needs custom allocator.
     pub(crate) vertex_buffer: vk::Buffer,
     pub(crate) vertex_buffer_memory: vk::DeviceMemory,
+    pub(crate) index_buffer: vk::Buffer,
+    pub(crate) index_buffer_memory: vk::DeviceMemory,
 }

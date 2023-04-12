@@ -5,11 +5,14 @@ use vulkanalia::prelude::v1_0::*;
 use lazy_static::lazy_static;
 lazy_static! {
     pub(crate) static ref VERTICES: Vec<Vertex> = vec![
-        Vertex::new(cgmath::vec2(0.0, -0.5), cgmath::vec3(1.0, 1.0, 1.0)),
-        Vertex::new(cgmath::vec2(0.5, 0.5), cgmath::vec3(0.0, 1.0, 0.0)),
-        Vertex::new(cgmath::vec2(-0.5, 0.5), cgmath::vec3(0.0, 0.0, 1.0)),
+        Vertex::new(cgmath::vec2(-0.5, -0.5), cgmath::vec3(1.0, 0.0, 0.0)),
+        Vertex::new(cgmath::vec2(0.5, -0.5), cgmath::vec3(0.0, 1.0, 0.0)),
+        Vertex::new(cgmath::vec2(0.5, 0.5), cgmath::vec3(0.0, 0.0, 1.0)),
+        Vertex::new(cgmath::vec2(-0.5, 0.5), cgmath::vec3(1.0, 1.0, 1.0)),
     ];
 }
+// OPTIMIZE if there is more than 65,536 unique vertices use u32.
+pub(crate) const INDICES: &[u16] = &[0, 1, 2, 2, 3, 0];
 
 #[repr(C)]
 #[derive(Copy, Clone, Debug)]
