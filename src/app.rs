@@ -206,9 +206,8 @@ impl App {
 
     pub(crate) unsafe fn destroy(&mut self) {
         self.destroy_swapchain();
-        self.device.destroy_buffer(self.data.vertex_buffer, None);
-        self.device
-            .free_memory(self.data.vertex_buffer_memory, None);
+        self.device.destroy_buffer(self.data.index_buffer, None);
+        self.device.free_memory(self.data.index_buffer_memory, None);
         self.device.destroy_buffer(self.data.vertex_buffer, None);
         self.device
             .free_memory(self.data.vertex_buffer_memory, None);
