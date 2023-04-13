@@ -22,6 +22,7 @@ use crate::vk_pipeline::create_pipeline;
 use crate::vk_render_pass::create_render_pass;
 use crate::vk_swapchain::{create_swapchain, create_swapchain_image_views};
 use crate::vk_sync_object::create_sync_objects;
+use crate::vk_texture_image::create_texture_image;
 use crate::vk_uniform_buffer::{create_uniform_buffers, UniformBufferObject};
 use crate::vk_vertex_buffer::{create_index_buffer, create_vertex_buffer};
 use crate::{MAX_FRAMES_IN_FLIGHT, VALIDATION_ENABLED};
@@ -59,6 +60,7 @@ impl App {
         create_pipeline(&device, &mut data)?;
         create_framebuffers(&device, &mut data)?;
         create_command_pool(&instance, &device, &mut data)?;
+        create_texture_image(&instance, &device, &mut data)?;
         create_vertex_buffer(&instance, &device, &mut data)?;
         create_index_buffer(&instance, &device, &mut data)?;
         create_uniform_buffers(&instance, &device, &mut data)?;
@@ -280,6 +282,9 @@ impl App {
 
     pub(crate) unsafe fn destroy(&mut self) {
         self.destroy_swapchain();
+        self.device.destroy_image(self.data.texture_image, None);
+        self.device
+            .free_memory(self.data.texture_image_memory, None);
         self.device
             .destroy_descriptor_set_layout(self.data.descriptor_set_layout, None);
         self.device.destroy_buffer(self.data.index_buffer, None);
@@ -347,4 +352,6 @@ pub(crate) struct AppData {
     pub(crate) uniform_buffers_memory: Vec<vk::DeviceMemory>,
     pub(crate) descriptor_pool: vk::DescriptorPool,
     pub(crate) descriptor_sets: Vec<vk::DescriptorSet>,
+    pub(crate) texture_image: vk::Image,
+    pub(crate) texture_image_memory: vk::DeviceMemory,
 }

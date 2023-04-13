@@ -1,5 +1,4 @@
 mod app;
-mod vertex;
 mod vk_command_buffer;
 mod vk_descriptor_layout;
 mod vk_descriptor_pool;
@@ -9,9 +8,12 @@ mod vk_logical_device;
 mod vk_physical_device;
 mod vk_pipeline;
 mod vk_render_pass;
+mod vk_single_time_cmd;
 mod vk_swapchain;
 mod vk_sync_object;
+mod vk_texture_image;
 mod vk_uniform_buffer;
+mod vk_vertex;
 mod vk_vertex_buffer;
 
 use winit::dpi::LogicalSize;

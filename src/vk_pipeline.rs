@@ -4,7 +4,7 @@ use vulkanalia::prelude::v1_0::*;
 use vulkanalia::Device;
 
 use crate::app::AppData;
-use crate::vertex::Vertex;
+use crate::vk_vertex::Vertex;
 
 pub(crate) unsafe fn create_pipeline(device: &Device, data: &mut AppData) -> Result<()> {
     let set_layouts = &[data.descriptor_set_layout];
