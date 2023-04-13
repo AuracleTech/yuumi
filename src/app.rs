@@ -164,6 +164,7 @@ impl App {
         // We check if the window was resized. If it was, we recreate the swapchain.
         if self.resized || changed {
             self.recreate_swapchain(window)?;
+            self.resized = false;
         } else if let Err(e) = result {
             return Err(anyhow!(e));
         }
