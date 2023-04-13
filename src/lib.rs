@@ -1,13 +1,8 @@
-// #![allow(
-//     dead_code,
-//     unused_variables,
-//     clippy::too_many_arguments,
-//     clippy::unnecessary_wraps
-// )]
-
 mod app;
 mod vertex;
 mod vk_command_buffer;
+mod vk_descriptor_layout;
+mod vk_descriptor_pool;
 mod vk_framebuffer;
 mod vk_instance;
 mod vk_logical_device;
@@ -16,6 +11,7 @@ mod vk_pipeline;
 mod vk_render_pass;
 mod vk_swapchain;
 mod vk_sync_object;
+mod vk_uniform_buffer;
 mod vk_vertex_buffer;
 
 use winit::dpi::LogicalSize;

@@ -5,10 +5,10 @@ use vulkanalia::prelude::v1_0::*;
 use lazy_static::lazy_static;
 lazy_static! {
     pub(crate) static ref VERTICES: Vec<Vertex> = vec![
-        Vertex::new(cgmath::vec2(-0.5, -0.5), cgmath::vec3(1.0, 0.0, 0.0)),
-        Vertex::new(cgmath::vec2(0.5, -0.5), cgmath::vec3(0.0, 1.0, 0.0)),
-        Vertex::new(cgmath::vec2(0.5, 0.5), cgmath::vec3(0.0, 0.0, 1.0)),
-        Vertex::new(cgmath::vec2(-0.5, 0.5), cgmath::vec3(1.0, 1.0, 1.0)),
+        Vertex::new(glm::vec2(-0.5, -0.5), glm::vec3(1.0, 0.0, 0.0)),
+        Vertex::new(glm::vec2(0.5, -0.5), glm::vec3(0.0, 1.0, 0.0)),
+        Vertex::new(glm::vec2(0.5, 0.5), glm::vec3(0.0, 0.0, 1.0)),
+        Vertex::new(glm::vec2(-0.5, 0.5), glm::vec3(1.0, 1.0, 1.0)),
     ];
 }
 // OPTIMIZE if there is more than 65,536 unique vertices use u32.
@@ -17,12 +17,12 @@ pub(crate) const INDICES: &[u16] = &[0, 1, 2, 2, 3, 0];
 #[repr(C)]
 #[derive(Copy, Clone, Debug)]
 pub(crate) struct Vertex {
-    pos: cgmath::Vector2<f32>,
-    color: cgmath::Vector3<f32>,
+    pos: glm::Vec2,
+    color: glm::Vec3,
 }
 
 impl Vertex {
-    pub(crate) fn new(pos: cgmath::Vector2<f32>, color: cgmath::Vector3<f32>) -> Self {
+    pub(crate) fn new(pos: glm::Vec2, color: glm::Vec3) -> Self {
         Self { pos, color }
     }
 
@@ -46,7 +46,7 @@ impl Vertex {
             .binding(0)
             .location(1)
             .format(vk::Format::R32G32B32_SFLOAT)
-            .offset(size_of::<cgmath::Vector2<f32>>() as u32)
+            .offset(size_of::<glm::Vec2>() as u32)
             .build();
 
         [pos, color]

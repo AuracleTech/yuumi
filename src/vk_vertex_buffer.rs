@@ -107,7 +107,7 @@ unsafe fn get_memory_type_index(
         .ok_or_else(|| anyhow!("Failed to find suitable memory type."))
 }
 
-unsafe fn create_buffer(
+pub(crate) unsafe fn create_buffer(
     instance: &Instance,
     device: &Device,
     data: &AppData,

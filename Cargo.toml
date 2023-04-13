@@ -5,7 +5,7 @@ edition = "2021"
 
 [dependencies]
 anyhow = "1"
-cgmath = "0.18.0"
+glm = "0.2.3"
 lazy_static = "1"
 log = "0.4"
 nalgebra-glm = "0.18.0"
