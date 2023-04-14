@@ -36,6 +36,7 @@ unsafe fn check_physical_device_extensions(
         )))
     }
 }
+
 unsafe fn check_physical_device(
     instance: &Instance,
     data: &AppData,
@@ -49,6 +50,9 @@ unsafe fn check_physical_device(
     }
 
     let features = instance.get_physical_device_features(physical_device);
+    if features.sampler_anisotropy != vk::TRUE {
+        return Err(anyhow!(SuitabilityError("No sampler anisotropy.")));
+    }
     if features.geometry_shader != vk::TRUE {
         return Err(anyhow!(SuitabilityError(
             "Missing geometry shader support."
