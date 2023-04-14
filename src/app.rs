@@ -15,14 +15,16 @@ use crate::vk_command_buffer::{create_command_buffers, create_command_pool};
 use crate::vk_descriptor_layout::create_descriptor_set_layout;
 use crate::vk_descriptor_pool::{create_descriptor_pool, create_descriptor_sets};
 use crate::vk_framebuffer::create_framebuffers;
+use crate::vk_image_view::{create_swapchain_image_views, create_texture_image_view};
 use crate::vk_instance::create_instance;
 use crate::vk_logical_device::create_logical_device;
 use crate::vk_physical_device::pick_physical_device;
 use crate::vk_pipeline::create_pipeline;
 use crate::vk_render_pass::create_render_pass;
-use crate::vk_swapchain::{create_swapchain, create_swapchain_image_views};
+use crate::vk_swapchain::create_swapchain;
 use crate::vk_sync_object::create_sync_objects;
 use crate::vk_texture_image::create_texture_image;
+use crate::vk_texture_sampler::create_texture_sampler;
 use crate::vk_uniform_buffer::{create_uniform_buffers, UniformBufferObject};
 use crate::vk_vertex_buffer::{create_index_buffer, create_vertex_buffer};
 use crate::{MAX_FRAMES_IN_FLIGHT, VALIDATION_ENABLED};
@@ -61,6 +63,8 @@ impl App {
         create_framebuffers(&device, &mut data)?;
         create_command_pool(&instance, &device, &mut data)?;
         create_texture_image(&instance, &device, &mut data)?;
+        create_texture_image_view(&device, &mut data)?;
+        create_texture_sampler(&device, &mut data)?;
         create_vertex_buffer(&instance, &device, &mut data)?;
         create_index_buffer(&instance, &device, &mut data)?;
         create_uniform_buffers(&instance, &device, &mut data)?;
@@ -279,43 +283,50 @@ impl App {
             .for_each(|v| self.device.destroy_image_view(*v, None));
         self.device.destroy_swapchain_khr(self.data.swapchain, None);
     }
+}
 
-    pub(crate) unsafe fn destroy(&mut self) {
-        self.destroy_swapchain();
-        self.device.destroy_image(self.data.texture_image, None);
-        self.device
-            .free_memory(self.data.texture_image_memory, None);
-        self.device
-            .destroy_descriptor_set_layout(self.data.descriptor_set_layout, None);
-        self.device.destroy_buffer(self.data.index_buffer, None);
-        self.device.free_memory(self.data.index_buffer_memory, None);
-        self.device.destroy_buffer(self.data.vertex_buffer, None);
-        self.device
-            .free_memory(self.data.vertex_buffer_memory, None);
+impl Drop for App {
+    fn drop(&mut self) {
+        unsafe {
+            self.destroy_swapchain();
+            self.device.destroy_sampler(self.data.texture_sampler, None);
+            self.device
+                .destroy_image_view(self.data.texture_image_view, None);
+            self.device.destroy_image(self.data.texture_image, None);
+            self.device
+                .free_memory(self.data.texture_image_memory, None);
+            self.device
+                .destroy_descriptor_set_layout(self.data.descriptor_set_layout, None);
+            self.device.destroy_buffer(self.data.index_buffer, None);
+            self.device.free_memory(self.data.index_buffer_memory, None);
+            self.device.destroy_buffer(self.data.vertex_buffer, None);
+            self.device
+                .free_memory(self.data.vertex_buffer_memory, None);
 
-        self.data
-            .in_flight_fences
-            .iter()
-            .for_each(|f| self.device.destroy_fence(*f, None));
-        self.data
-            .render_finished_semaphores
-            .iter()
-            .for_each(|s| self.device.destroy_semaphore(*s, None));
-        self.data
-            .image_available_semaphores
-            .iter()
-            .for_each(|s| self.device.destroy_semaphore(*s, None));
-        self.device
-            .destroy_command_pool(self.data.command_pool, None);
-        self.device.destroy_device(None);
-        self.instance.destroy_surface_khr(self.data.surface, None);
+            self.data
+                .in_flight_fences
+                .iter()
+                .for_each(|f| self.device.destroy_fence(*f, None));
+            self.data
+                .render_finished_semaphores
+                .iter()
+                .for_each(|s| self.device.destroy_semaphore(*s, None));
+            self.data
+                .image_available_semaphores
+                .iter()
+                .for_each(|s| self.device.destroy_semaphore(*s, None));
+            self.device
+                .destroy_command_pool(self.data.command_pool, None);
+            self.device.destroy_device(None);
+            self.instance.destroy_surface_khr(self.data.surface, None);
 
-        if VALIDATION_ENABLED {
-            self.instance
-                .destroy_debug_utils_messenger_ext(self.data.messenger, None);
+            if VALIDATION_ENABLED {
+                self.instance
+                    .destroy_debug_utils_messenger_ext(self.data.messenger, None);
+            }
+
+            self.instance.destroy_instance(None);
         }
-
-        self.instance.destroy_instance(None);
     }
 }
 
@@ -354,4 +365,6 @@ pub(crate) struct AppData {
     pub(crate) descriptor_sets: Vec<vk::DescriptorSet>,
     pub(crate) texture_image: vk::Image,
     pub(crate) texture_image_memory: vk::DeviceMemory,
+    pub(crate) texture_image_view: vk::ImageView,
+    pub(crate) texture_sampler: vk::Sampler,
 }

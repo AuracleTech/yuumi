@@ -3,6 +3,7 @@ mod vk_command_buffer;
 mod vk_descriptor_layout;
 mod vk_descriptor_pool;
 mod vk_framebuffer;
+mod vk_image_view;
 mod vk_instance;
 mod vk_logical_device;
 mod vk_physical_device;
@@ -12,6 +13,7 @@ mod vk_single_time_cmd;
 mod vk_swapchain;
 mod vk_sync_object;
 mod vk_texture_image;
+mod vk_texture_sampler;
 mod vk_uniform_buffer;
 mod vk_vertex;
 mod vk_vertex_buffer;
@@ -53,7 +55,7 @@ pub fn start() -> Result<()> {
         match event {
             // Render a frame if our Vulkan app is not being destroyed.
             Event::MainEventsCleared if !app.destroying && !app.minimized => {
-                unsafe { app.render(&window) }.unwrap()
+                unsafe { app.render(&window) }.expect("Failed to render");
             }
             // Destroy our Vulkan app.
             Event::WindowEvent {
@@ -63,10 +65,9 @@ pub fn start() -> Result<()> {
                 app.destroying = true;
                 *control_flow = ControlFlow::Exit;
                 unsafe {
-                    app.device.device_wait_idle().unwrap();
-                }
-                unsafe {
-                    app.destroy();
+                    app.device
+                        .device_wait_idle()
+                        .expect("Failed to wait for device to idle");
                 }
             }
             Event::WindowEvent {
