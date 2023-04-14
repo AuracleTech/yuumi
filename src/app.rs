@@ -195,30 +195,21 @@ impl App {
     unsafe fn update_uniform_buffer(&self, image_index: usize) -> Result<()> {
         let time = self.start.elapsed().as_secs_f32();
 
-        let identity = glm::mat4(
-            1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0,
+        let identity = <cgmath::Matrix4<f32> as cgmath::SquareMatrix>::identity();
+
+        let model = <cgmath::Matrix4<f32>>::from_angle_z(cgmath::Deg(time * 90.0)) * identity;
+
+        let view = <cgmath::Matrix4<f32>>::look_at_rh(
+            cgmath::Point3::new(2.0, 2.0, 2.0),
+            cgmath::Point3::new(0.0, 0.0, 0.0),
+            cgmath::Vector3::unit_z(),
         );
 
-        let model = glm::ext::rotate(
-            &identity,
-            time * glm::radians(glm::radians(90.0)),
-            glm::vec3(0.0, 0.0, 1.0),
-        );
+        let aspect_ratio =
+            self.data.swapchain_extent.width as f32 / self.data.swapchain_extent.height as f32;
+        let mut proj = cgmath::perspective(cgmath::Deg(45.0), aspect_ratio, 0.1, 10.0);
 
-        let view = glm::ext::look_at(
-            glm::vec3(2.0, 2.0, 2.0),
-            glm::vec3(0.0, 0.0, 0.0),
-            glm::vec3(0.0, 0.0, 1.0),
-        );
-
-        let mut proj = glm::ext::perspective(
-            self.data.swapchain_extent.width as f32 / self.data.swapchain_extent.height as f32,
-            glm::radians(45.0),
-            0.1,
-            10.0,
-        );
-
-        proj[1][1] *= -1.0;
+        proj.y.y *= -1.0;
 
         let ubo = UniformBufferObject { model, view, proj };
 

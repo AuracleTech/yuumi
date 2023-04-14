@@ -7,9 +7,9 @@ use crate::{app::AppData, vk_vertex_buffer::create_buffer};
 #[repr(C)]
 #[derive(Copy, Clone, Debug)]
 pub(crate) struct UniformBufferObject {
-    pub(crate) model: glm::Mat4,
-    pub(crate) view: glm::Mat4,
-    pub(crate) proj: glm::Mat4,
+    pub(crate) model: cgmath::Matrix4<f32>,
+    pub(crate) view: cgmath::Matrix4<f32>,
+    pub(crate) proj: cgmath::Matrix4<f32>,
 }
 
 pub(crate) unsafe fn create_uniform_buffers(
