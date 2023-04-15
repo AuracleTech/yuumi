@@ -8,4 +8,7 @@ layout(binding = 1) uniform sampler2D texSampler;
 
 void main() {
     outColor = texture(texSampler, fragTexCoord);
+    if (outColor.a < 0.1) {
+        discard;
+    }
 }
