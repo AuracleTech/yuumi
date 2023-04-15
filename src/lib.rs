@@ -1,5 +1,6 @@
 mod app;
 mod vk_command_buffer;
+mod vk_depth_object;
 mod vk_descriptor_layout;
 mod vk_descriptor_pool;
 mod vk_framebuffer;

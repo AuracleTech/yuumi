@@ -49,7 +49,14 @@ pub(crate) unsafe fn create_command_buffers(device: &Device, data: &mut AppData)
             },
         };
 
-        let clear_values = &[color_clear_value];
+        let depth_clear_value = vk::ClearValue {
+            depth_stencil: vk::ClearDepthStencilValue {
+                depth: 1.0,
+                stencil: 0,
+            },
+        };
+
+        let clear_values = &[color_clear_value, depth_clear_value];
         let info = vk::RenderPassBeginInfo::builder()
             .render_pass(data.render_pass)
             .framebuffer(data.framebuffers[i])

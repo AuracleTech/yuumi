@@ -12,6 +12,7 @@ use vulkanalia::window::create_surface;
 use vulkanalia::Device;
 
 use crate::vk_command_buffer::{create_command_buffers, create_command_pool};
+use crate::vk_depth_object::create_depth_objects;
 use crate::vk_descriptor_layout::create_descriptor_set_layout;
 use crate::vk_descriptor_pool::{create_descriptor_pool, create_descriptor_sets};
 use crate::vk_framebuffer::create_framebuffers;
@@ -57,11 +58,12 @@ impl App {
         let device = create_logical_device(&instance, &mut data)?;
         create_swapchain(window, &instance, &device, &mut data)?;
         create_swapchain_image_views(&device, &mut data)?;
-        create_render_pass(&device, &mut data)?;
+        create_render_pass(&instance, &device, &mut data)?;
         create_descriptor_set_layout(&device, &mut data)?;
         create_pipeline(&device, &mut data)?;
-        create_framebuffers(&device, &mut data)?;
         create_command_pool(&instance, &device, &mut data)?;
+        create_depth_objects(&instance, &device, &mut data)?;
+        create_framebuffers(&device, &mut data)?;
         create_texture_image(&instance, &device, &mut data)?;
         create_texture_image_view(&device, &mut data)?;
         create_texture_sampler(&device, &mut data)?;
@@ -209,6 +211,8 @@ impl App {
             self.data.swapchain_extent.width as f32 / self.data.swapchain_extent.height as f32;
         let mut proj = cgmath::perspective(cgmath::Deg(45.0), aspect_ratio, 0.1, 10.0);
 
+        // FIX might need to convert from opengl [-1, 1] to vulkan [0, 1]
+
         proj.y.y *= -1.0;
 
         let ubo = UniformBufferObject { model, view, proj };
@@ -234,8 +238,9 @@ impl App {
         self.destroy_swapchain();
         create_swapchain(window, &self.instance, &self.device, &mut self.data)?;
         create_swapchain_image_views(&self.device, &mut self.data)?;
-        create_render_pass(&self.device, &mut self.data)?;
+        create_render_pass(&self.instance, &self.device, &mut self.data)?;
         create_pipeline(&self.device, &mut self.data)?;
+        create_depth_objects(&self.instance, &self.device, &mut self.data)?;
         create_framebuffers(&self.device, &mut self.data)?;
         create_uniform_buffers(&self.instance, &self.device, &mut self.data)?;
         create_descriptor_pool(&self.device, &mut self.data)?;
@@ -248,6 +253,10 @@ impl App {
     }
 
     unsafe fn destroy_swapchain(&mut self) {
+        self.device
+            .destroy_image_view(self.data.depth_image_view, None);
+        self.device.free_memory(self.data.depth_image_memory, None);
+        self.device.destroy_image(self.data.depth_image, None);
         self.device
             .destroy_descriptor_pool(self.data.descriptor_pool, None);
         self.data
@@ -358,4 +367,7 @@ pub(crate) struct AppData {
     pub(crate) texture_image_memory: vk::DeviceMemory,
     pub(crate) texture_image_view: vk::ImageView,
     pub(crate) texture_sampler: vk::Sampler,
+    pub(crate) depth_image: vk::Image,
+    pub(crate) depth_image_memory: vk::DeviceMemory,
+    pub(crate) depth_image_view: vk::ImageView,
 }
