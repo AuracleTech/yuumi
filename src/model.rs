@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use anyhow::Result;
 
 use crate::{app::AppData, vk_vertex::Vertex};
@@ -15,6 +17,7 @@ pub(crate) fn load_model(data: &mut AppData) -> Result<()> {
     )?;
 
     for model in &models {
+        let mut unique_vertices = HashMap::new();
         for index in &model.mesh.indices {
             let pos_offset = (3 * index) as usize;
             let tex_coord_offset = (2 * index) as usize;
@@ -32,8 +35,14 @@ pub(crate) fn load_model(data: &mut AppData) -> Result<()> {
                 ),
             };
 
-            data.vertices.push(vertex);
-            data.indices.push(data.indices.len() as u32); // TODO: Fix this.
+            if let Some(index) = unique_vertices.get(&vertex) {
+                data.indices.push(*index as u32);
+            } else {
+                let index = data.vertices.len();
+                unique_vertices.insert(vertex, index);
+                data.vertices.push(vertex);
+                data.indices.push(index as u32);
+            }
         }
     }
 
