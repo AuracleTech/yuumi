@@ -10,6 +10,7 @@ pub(crate) unsafe fn create_texture_image_view(device: &Device, data: &mut AppDa
         data.texture_image,
         vk::Format::R8G8B8A8_SRGB,
         vk::ImageAspectFlags::COLOR,
+        data.mip_levels,
     )?;
 
     Ok(())
@@ -28,6 +29,7 @@ pub(crate) unsafe fn create_swapchain_image_views(
                 *i,
                 data.swapchain_format,
                 vk::ImageAspectFlags::COLOR,
+                1,
             )
         })
         .collect::<Result<Vec<_>, _>>()?;
@@ -40,11 +42,12 @@ pub(crate) unsafe fn create_image_view(
     image: vk::Image,
     format: vk::Format,
     aspects: vk::ImageAspectFlags,
+    mip_levels: u32,
 ) -> Result<vk::ImageView> {
     let subresource_range = vk::ImageSubresourceRange::builder()
         .aspect_mask(aspects)
         .base_mip_level(0)
-        .level_count(1)
+        .level_count(mip_levels)
         .base_array_layer(0)
         .layer_count(1);
 

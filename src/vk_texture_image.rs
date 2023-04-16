@@ -4,6 +4,7 @@ use vulkanalia::prelude::v1_0::*;
 
 use crate::{
     app::AppData,
+    vk_generate_mipmaps::generate_mipmaps,
     vk_single_time_cmd::{begin_single_time_commands, end_single_time_commands},
     vk_vertex_buffer::create_buffer,
     vk_vertex_buffer::get_memory_type_index,
@@ -24,6 +25,8 @@ pub(crate) unsafe fn create_texture_image(
 
     let size = reader.info().raw_bytes() as u64;
     let (width, height) = reader.info().size();
+
+    data.mip_levels = (width.max(height) as f32).log2().floor() as u32 + 1;
 
     let (staging_buffer, staging_buffer_memory) = create_buffer(
         instance,
@@ -46,9 +49,12 @@ pub(crate) unsafe fn create_texture_image(
         data,
         width,
         height,
+        data.mip_levels,
         vk::Format::R8G8B8A8_SRGB,
         vk::ImageTiling::OPTIMAL,
-        vk::ImageUsageFlags::SAMPLED | vk::ImageUsageFlags::TRANSFER_DST,
+        vk::ImageUsageFlags::SAMPLED
+            | vk::ImageUsageFlags::TRANSFER_DST
+            | vk::ImageUsageFlags::TRANSFER_SRC,
         vk::MemoryPropertyFlags::DEVICE_LOCAL,
     )?;
 
@@ -62,6 +68,7 @@ pub(crate) unsafe fn create_texture_image(
         vk::Format::R8G8B8A8_SRGB,
         vk::ImageLayout::UNDEFINED,
         vk::ImageLayout::TRANSFER_DST_OPTIMAL,
+        data.mip_levels,
     )?;
 
     copy_buffer_to_image(
@@ -73,17 +80,19 @@ pub(crate) unsafe fn create_texture_image(
         height,
     )?;
 
-    transition_image_layout(
+    device.destroy_buffer(staging_buffer, None);
+    device.free_memory(staging_buffer_memory, None);
+
+    generate_mipmaps(
+        instance,
         device,
         data,
         data.texture_image,
         vk::Format::R8G8B8A8_SRGB,
-        vk::ImageLayout::TRANSFER_DST_OPTIMAL,
-        vk::ImageLayout::SHADER_READ_ONLY_OPTIMAL,
+        width,
+        height,
+        data.mip_levels,
     )?;
-
-    device.destroy_buffer(staging_buffer, None);
-    device.free_memory(staging_buffer_memory, None);
 
     Ok(())
 }
@@ -94,6 +103,7 @@ pub(crate) unsafe fn create_image(
     data: &AppData,
     width: u32,
     height: u32,
+    mip_levels: u32,
     format: vk::Format,
     tiling: vk::ImageTiling,
     usage: vk::ImageUsageFlags,
@@ -106,7 +116,7 @@ pub(crate) unsafe fn create_image(
             height,
             depth: 1,
         })
-        .mip_levels(1)
+        .mip_levels(mip_levels)
         .array_layers(1)
         .format(format)
         .tiling(tiling)
@@ -142,6 +152,7 @@ pub(crate) unsafe fn transition_image_layout(
     format: vk::Format,
     old_layout: vk::ImageLayout,
     new_layout: vk::ImageLayout,
+    mip_levels: u32,
 ) -> Result<()> {
     let aspect_mask = if new_layout == vk::ImageLayout::DEPTH_STENCIL_ATTACHMENT_OPTIMAL {
         match format {
@@ -183,7 +194,7 @@ pub(crate) unsafe fn transition_image_layout(
     let subresource = vk::ImageSubresourceRange::builder()
         .aspect_mask(aspect_mask)
         .base_mip_level(0)
-        .level_count(1)
+        .level_count(mip_levels)
         .base_array_layer(0)
         .layer_count(1);
 

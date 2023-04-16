@@ -18,9 +18,9 @@ pub(crate) unsafe fn create_texture_sampler(device: &Device, data: &mut AppData)
         .compare_enable(false)
         .compare_op(vk::CompareOp::ALWAYS)
         .mipmap_mode(vk::SamplerMipmapMode::LINEAR)
-        .mip_lod_bias(0.0)
-        .min_lod(0.0)
-        .max_lod(0.0);
+        .min_lod(0.0) // Optional
+        .max_lod(data.mip_levels as f32)
+        .mip_lod_bias(0.0); // Optional
 
     data.texture_sampler = device.create_sampler(&info, None)?;
 

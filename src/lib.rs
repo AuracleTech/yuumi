@@ -5,6 +5,7 @@ mod vk_depth_object;
 mod vk_descriptor_layout;
 mod vk_descriptor_pool;
 mod vk_framebuffer;
+mod vk_generate_mipmaps;
 mod vk_image_view;
 mod vk_instance;
 mod vk_logical_device;

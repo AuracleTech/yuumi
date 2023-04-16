@@ -366,6 +366,7 @@ pub(crate) struct AppData {
     pub(crate) uniform_buffers_memory: Vec<vk::DeviceMemory>,
     pub(crate) descriptor_pool: vk::DescriptorPool,
     pub(crate) descriptor_sets: Vec<vk::DescriptorSet>,
+    pub(crate) mip_levels: u32,
     pub(crate) texture_image: vk::Image,
     pub(crate) texture_image_memory: vk::DeviceMemory,
     pub(crate) texture_image_view: vk::ImageView,
