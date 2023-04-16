@@ -200,9 +200,9 @@ impl App {
     unsafe fn update_uniform_buffer(&self, image_index: usize) -> Result<()> {
         let time = self.start.elapsed().as_secs_f32();
 
-        let identity = <cgmath::Matrix4<f32> as cgmath::SquareMatrix>::identity();
+        // let identity = <cgmath::Matrix4<f32> as cgmath::SquareMatrix>::identity();
 
-        let model = <cgmath::Matrix4<f32>>::from_angle_z(cgmath::Deg(time * 10.0)) * identity;
+        let model = <cgmath::Matrix4<f32>>::from_angle_z(cgmath::Deg(time * 10.0));
 
         let view = <cgmath::Matrix4<f32>>::look_at_rh(
             cgmath::Point3::new(2.0, 2.0, 2.0),
@@ -213,8 +213,6 @@ impl App {
         let aspect_ratio =
             self.data.swapchain_extent.width as f32 / self.data.swapchain_extent.height as f32;
         let mut proj = cgmath::perspective(cgmath::Deg(45.0), aspect_ratio, 0.1, 10.0);
-
-        // FIX might need to convert from opengl [-1, 1] to vulkan [0, 1]
 
         proj.y.y *= -1.0;
 
