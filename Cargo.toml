@@ -17,7 +17,7 @@ vulkanalia = { version = "=0.18.0", features = ["libloading", "window"] }
 winit = "0.28.3"
 
 [profile.dev]
-opt-level = 3
+opt-level = 0
 
 [profile.release]
 opt-level = 3
