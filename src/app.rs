@@ -11,6 +11,7 @@ use vulkanalia::vk::{ExtDebugUtilsExtension, KhrSurfaceExtension, KhrSwapchainEx
 use vulkanalia::window::create_surface;
 use vulkanalia::Device;
 
+use crate::model::load_model;
 use crate::vk_command_buffer::{create_command_buffers, create_command_pool};
 use crate::vk_depth_object::create_depth_objects;
 use crate::vk_descriptor_layout::create_descriptor_set_layout;
@@ -27,6 +28,7 @@ use crate::vk_sync_object::create_sync_objects;
 use crate::vk_texture_image::create_texture_image;
 use crate::vk_texture_sampler::create_texture_sampler;
 use crate::vk_uniform_buffer::{create_uniform_buffers, UniformBufferObject};
+use crate::vk_vertex::Vertex;
 use crate::vk_vertex_buffer::{create_index_buffer, create_vertex_buffer};
 use crate::{MAX_FRAMES_IN_FLIGHT, VALIDATION_ENABLED};
 
@@ -67,6 +69,7 @@ impl App {
         create_texture_image(&instance, &device, &mut data)?;
         create_texture_image_view(&device, &mut data)?;
         create_texture_sampler(&device, &mut data)?;
+        load_model(&mut data)?;
         create_vertex_buffer(&instance, &device, &mut data)?;
         create_index_buffer(&instance, &device, &mut data)?;
         create_uniform_buffers(&instance, &device, &mut data)?;
@@ -199,7 +202,7 @@ impl App {
 
         let identity = <cgmath::Matrix4<f32> as cgmath::SquareMatrix>::identity();
 
-        let model = <cgmath::Matrix4<f32>>::from_angle_z(cgmath::Deg(time * 90.0)) * identity;
+        let model = <cgmath::Matrix4<f32>>::from_angle_z(cgmath::Deg(time * 10.0)) * identity;
 
         let view = <cgmath::Matrix4<f32>>::look_at_rh(
             cgmath::Point3::new(2.0, 2.0, 2.0),
@@ -354,6 +357,8 @@ pub(crate) struct AppData {
     pub(crate) render_finished_semaphores: Vec<vk::Semaphore>,
     pub(crate) in_flight_fences: Vec<vk::Fence>,
     pub(crate) images_in_flight: Vec<vk::Fence>,
+    pub(crate) vertices: Vec<Vertex>,
+    pub(crate) indices: Vec<u32>,
     // OPTIMIZE Use a single buffer for multiple buffers. Requires custom allocator.
     pub(crate) vertex_buffer: vk::Buffer,
     pub(crate) vertex_buffer_memory: vk::DeviceMemory,

@@ -1,4 +1,5 @@
 mod app;
+mod model;
 mod vk_command_buffer;
 mod vk_depth_object;
 mod vk_descriptor_layout;
@@ -37,14 +38,14 @@ const VALIDATION_ENABLED: bool = cfg!(debug_assertions);
 const VALIDATION_LAYER: vk::ExtensionName =
     vk::ExtensionName::from_bytes(b"VK_LAYER_KHRONOS_validation");
 
-pub fn start() -> Result<()> {
+pub fn start(app_name: &str) -> Result<()> {
     pretty_env_logger::init();
 
     // Window
 
     let event_loop = EventLoop::new();
     let window = WindowBuilder::new()
-        .with_title("Vulkan Tutorial (Rust)")
+        .with_title(app_name)
         .with_inner_size(LogicalSize::new(1024, 768))
         .build(&event_loop)?;
 

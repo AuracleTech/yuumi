@@ -2,7 +2,7 @@ use anyhow::Result;
 
 use vulkanalia::prelude::v1_0::*;
 
-use crate::{app::AppData, vk_physical_device::QueueFamilyIndices, vk_vertex::INDICES};
+use crate::{app::AppData, vk_physical_device::QueueFamilyIndices};
 
 pub(crate) unsafe fn create_command_pool(
     instance: &Instance,
@@ -72,7 +72,7 @@ pub(crate) unsafe fn create_command_buffers(device: &Device, data: &mut AppData)
         );
 
         device.cmd_bind_vertex_buffers(*command_buffer, 0, &[data.vertex_buffer], &[0]);
-        device.cmd_bind_index_buffer(*command_buffer, data.index_buffer, 0, vk::IndexType::UINT16);
+        device.cmd_bind_index_buffer(*command_buffer, data.index_buffer, 0, vk::IndexType::UINT32);
         device.cmd_bind_descriptor_sets(
             *command_buffer,
             vk::PipelineBindPoint::GRAPHICS,
@@ -81,7 +81,7 @@ pub(crate) unsafe fn create_command_buffers(device: &Device, data: &mut AppData)
             &[data.descriptor_sets[i]],
             &[],
         );
-        device.cmd_draw_indexed(*command_buffer, INDICES.len() as u32, 1, 0, 0, 0);
+        device.cmd_draw_indexed(*command_buffer, data.indices.len() as u32, 1, 0, 0, 0);
 
         device.cmd_end_render_pass(*command_buffer);
 

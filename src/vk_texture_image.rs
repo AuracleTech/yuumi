@@ -14,7 +14,7 @@ pub(crate) unsafe fn create_texture_image(
     device: &Device,
     data: &mut AppData,
 ) -> Result<()> {
-    let image = std::fs::File::open("assets/images/texture.png")?;
+    let image = std::fs::File::open("assets/models/viking_room.png")?;
 
     let decoder = png::Decoder::new(image);
     let mut reader = decoder.read_info()?;

@@ -1,74 +1,14 @@
 use vulkanalia::prelude::v1_0::*;
 
-use lazy_static::lazy_static;
-lazy_static! {
-    pub(crate) static ref VERTICES: Vec<Vertex> = vec![
-        Vertex::new(
-            cgmath::vec3(-0.5, -0.5, 0.0),
-            cgmath::vec3(1.0, 0.0, 0.0),
-            cgmath::vec2(1.0, 0.0)
-        ),
-        Vertex::new(
-            cgmath::vec3(0.5, -0.5, 0.0),
-            cgmath::vec3(0.0, 1.0, 0.0),
-            cgmath::vec2(0.0, 0.0)
-        ),
-        Vertex::new(
-            cgmath::vec3(0.5, 0.5, 0.0),
-            cgmath::vec3(0.0, 0.0, 1.0),
-            cgmath::vec2(0.0, 1.0)
-        ),
-        Vertex::new(
-            cgmath::vec3(-0.5, 0.5, 0.0),
-            cgmath::vec3(1.0, 1.0, 1.0),
-            cgmath::vec2(1.0, 1.0)
-        ),
-        Vertex::new(
-            cgmath::vec3(-0.5, -0.5, -0.5),
-            cgmath::vec3(1.0, 0.0, 0.0),
-            cgmath::vec2(1.0, 0.0)
-        ),
-        Vertex::new(
-            cgmath::vec3(0.5, -0.5, -0.5),
-            cgmath::vec3(0.0, 1.0, 0.0),
-            cgmath::vec2(0.0, 0.0)
-        ),
-        Vertex::new(
-            cgmath::vec3(0.5, 0.5, -0.5),
-            cgmath::vec3(0.0, 0.0, 1.0),
-            cgmath::vec2(0.0, 1.0)
-        ),
-        Vertex::new(
-            cgmath::vec3(-0.5, 0.5, -0.5),
-            cgmath::vec3(1.0, 1.0, 1.0),
-            cgmath::vec2(1.0, 1.0)
-        ),
-    ];
-}
-// OPTIMIZE if there is more than 65,536 unique vertices use u32.
-pub(crate) const INDICES: &[u16] = &[0, 1, 2, 2, 3, 0, 4, 5, 6, 6, 7, 4];
-
 #[repr(C)]
 #[derive(Copy, Clone, Debug)]
 pub(crate) struct Vertex {
-    pos: cgmath::Vector3<f32>,
-    color: cgmath::Vector3<f32>,
-    tex_coord: cgmath::Vector2<f32>,
+    pub(crate) pos: cgmath::Vector3<f32>,
+    pub(crate) color: cgmath::Vector3<f32>,
+    pub(crate) tex_coord: cgmath::Vector2<f32>,
 }
 
 impl Vertex {
-    pub(crate) fn new(
-        pos: cgmath::Vector3<f32>,
-        color: cgmath::Vector3<f32>,
-        tex_coord: cgmath::Vector2<f32>,
-    ) -> Self {
-        Self {
-            pos,
-            color,
-            tex_coord,
-        }
-    }
-
     pub(crate) fn binding_description() -> vk::VertexInputBindingDescription {
         vk::VertexInputBindingDescription::builder()
             .binding(0)

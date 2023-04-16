@@ -2,5 +2,5 @@ use anyhow::Result;
 use titan::start;
 
 fn main() -> Result<()> {
-    start()
+    start("Vulkan in Rust")
 }

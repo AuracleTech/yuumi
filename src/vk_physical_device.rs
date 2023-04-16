@@ -17,7 +17,7 @@ pub(crate) const DEVICE_EXTENSIONS: &[vk::ExtensionName] = &[vk::KHR_SWAPCHAIN_E
 
 #[derive(Debug, Error)]
 #[error("Missing {0}.")]
-pub struct SuitabilityError(pub &'static str);
+pub(crate) struct SuitabilityError(pub(crate) &'static str);
 
 unsafe fn check_physical_device_extensions(
     instance: &Instance,

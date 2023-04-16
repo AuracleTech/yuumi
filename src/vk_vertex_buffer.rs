@@ -5,7 +5,7 @@ use vulkanalia::prelude::v1_0::*;
 use crate::{
     app::AppData,
     vk_single_time_cmd::{begin_single_time_commands, end_single_time_commands},
-    vk_vertex::{Vertex, INDICES, VERTICES},
+    vk_vertex::Vertex,
 };
 
 pub(crate) unsafe fn create_vertex_buffer(
@@ -13,7 +13,7 @@ pub(crate) unsafe fn create_vertex_buffer(
     device: &Device,
     data: &mut AppData,
 ) -> Result<()> {
-    let size = (std::mem::size_of::<Vertex>() * VERTICES.len()) as u64;
+    let size = (std::mem::size_of::<Vertex>() * data.vertices.len()) as u64;
 
     let (staging_buffer, staging_buffer_memory) = create_buffer(
         instance,
@@ -26,7 +26,7 @@ pub(crate) unsafe fn create_vertex_buffer(
 
     let memory = device.map_memory(staging_buffer_memory, 0, size, vk::MemoryMapFlags::empty())?;
 
-    std::ptr::copy_nonoverlapping(VERTICES.as_ptr(), memory.cast(), VERTICES.len());
+    std::ptr::copy_nonoverlapping(data.vertices.as_ptr(), memory.cast(), data.vertices.len());
 
     device.unmap_memory(staging_buffer_memory);
 
@@ -54,7 +54,7 @@ pub(crate) unsafe fn create_index_buffer(
     device: &Device,
     data: &mut AppData,
 ) -> Result<()> {
-    let size = (std::mem::size_of::<u16>() * INDICES.len()) as u64;
+    let size = (std::mem::size_of::<u32>() * data.indices.len()) as u64;
 
     let (staging_buffer, staging_buffer_memory) = create_buffer(
         instance,
@@ -67,7 +67,7 @@ pub(crate) unsafe fn create_index_buffer(
 
     let memory = device.map_memory(staging_buffer_memory, 0, size, vk::MemoryMapFlags::empty())?;
 
-    std::ptr::copy_nonoverlapping(INDICES.as_ptr(), memory.cast(), INDICES.len());
+    std::ptr::copy_nonoverlapping(data.indices.as_ptr(), memory.cast(), data.indices.len());
 
     device.unmap_memory(staging_buffer_memory);
 
