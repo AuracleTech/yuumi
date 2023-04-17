@@ -42,6 +42,52 @@ const VALIDATION_ENABLED: bool = cfg!(debug_assertions);
 const VALIDATION_LAYER: vk::ExtensionName =
     vk::ExtensionName::from_bytes(b"VK_LAYER_KHRONOS_validation");
 
+const PERFORMANCE_INTERVAL: Duration = Duration::from_secs(1);
+struct PerformanceMetrics {
+    last_update_time: Instant,
+    slowest_draw_time: Duration,
+    fastest_draw_time: Duration,
+    total_draw_time: Duration,
+    total_draw_calls: u32,
+}
+impl Default for PerformanceMetrics {
+    fn default() -> Self {
+        Self {
+            last_update_time: Instant::now(),
+            slowest_draw_time: Duration::from_secs(0),
+            fastest_draw_time: Duration::from_secs(30),
+            total_draw_time: Duration::from_secs(0),
+            total_draw_calls: 0,
+        }
+    }
+}
+impl PerformanceMetrics {
+    fn update(&mut self, draw_time: Duration) {
+        self.total_draw_calls += 1;
+        self.total_draw_time += draw_time;
+        if draw_time > self.slowest_draw_time {
+            self.slowest_draw_time = draw_time;
+        }
+        if draw_time < self.fastest_draw_time {
+            self.fastest_draw_time = draw_time;
+        }
+        if self.last_update_time.elapsed() > PERFORMANCE_INTERVAL {
+            self.report();
+            *self = Self::default();
+        }
+    }
+
+    fn report(&self) {
+        log::info!(
+            "Slowest {:?} Fastest {:?} Average {:?} Total draw {}",
+            self.slowest_draw_time,
+            self.fastest_draw_time,
+            self.total_draw_time / self.total_draw_calls,
+            self.total_draw_calls
+        );
+    }
+}
+
 pub fn start(app_name: &str) -> Result<()> {
     pretty_env_logger::init();
 
@@ -55,7 +101,7 @@ pub fn start(app_name: &str) -> Result<()> {
 
     // App
 
-    let mut last_performance_update = Instant::now();
+    let mut performance_metrics = PerformanceMetrics::default();
 
     let mut app = unsafe { App::create(&window)? };
     event_loop.run(move |event, _, control_flow| {
@@ -64,15 +110,8 @@ pub fn start(app_name: &str) -> Result<()> {
             // Render a frame if our Vulkan app is not being destroyed.
             Event::MainEventsCleared if !app.destroying && !app.minimized => {
                 let instant = Instant::now();
-
                 unsafe { app.render(&window) }.expect("Failed to render");
-
-                let elapsed = instant.elapsed();
-
-                if Instant::now() - last_performance_update > Duration::from_millis(200) {
-                    log::info!("render {:?}", elapsed);
-                    last_performance_update = Instant::now();
-                }
+                performance_metrics.update(instant.elapsed());
             }
             // Destroy our Vulkan app.
             Event::WindowEvent {
