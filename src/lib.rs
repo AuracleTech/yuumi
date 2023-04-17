@@ -26,6 +26,8 @@ use winit::event::{Event, WindowEvent};
 use winit::event_loop::{ControlFlow, EventLoop};
 use winit::window::WindowBuilder;
 
+use std::time::{Duration, Instant};
+
 use vulkanalia::prelude::v1_0::*;
 
 use anyhow::Result;
@@ -52,13 +54,24 @@ pub fn start(app_name: &str) -> Result<()> {
 
     // App
 
+    let mut last_performance_update = Instant::now();
+
     let mut app = unsafe { App::create(&window)? };
     event_loop.run(move |event, _, control_flow| {
         *control_flow = ControlFlow::Poll;
         match event {
             // Render a frame if our Vulkan app is not being destroyed.
             Event::MainEventsCleared if !app.destroying && !app.minimized => {
+                let instant = Instant::now();
+
                 unsafe { app.render(&window) }.expect("Failed to render");
+
+                let elapsed = instant.elapsed();
+
+                if Instant::now() - last_performance_update > Duration::from_millis(200) {
+                    log::info!("elapsed: {:?}", elapsed);
+                    last_performance_update = Instant::now();
+                }
             }
             // Destroy our Vulkan app.
             Event::WindowEvent {

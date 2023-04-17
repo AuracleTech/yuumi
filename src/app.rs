@@ -1,8 +1,7 @@
-use std::time::{Duration, Instant};
+use std::time::Instant;
 
 use anyhow::{anyhow, Result};
 
-use log::debug;
 use winit::window::Window;
 
 use vulkanalia::loader::{LibloadingLoader, LIBRARY};
@@ -44,9 +43,7 @@ pub(crate) struct App {
     pub(crate) frame: usize,
     pub(crate) resized: bool,
     pub(crate) minimized: bool,
-    last_total_frames: u64,
-    last_fps_update: Instant,
-    start: Instant,
+    pub(crate) start: Instant,
 }
 
 impl App {
@@ -87,8 +84,6 @@ impl App {
             frame: 0,
             resized: false,
             minimized: false,
-            last_total_frames: 0,
-            last_fps_update: Instant::now(),
             start: Instant::now(),
         })
     }
@@ -185,14 +180,6 @@ impl App {
 
         // We increment the frame index.
         self.frame = (self.frame + 1) % MAX_FRAMES_IN_FLIGHT;
-
-        // Display frames per second.
-        if Instant::now() - self.last_fps_update > Duration::from_secs(1) {
-            let current_frames = self.total_frames - self.last_total_frames;
-            debug!("FPS: {}", current_frames);
-            self.last_fps_update = Instant::now();
-            self.last_total_frames = self.total_frames;
-        }
 
         Ok(())
     }
