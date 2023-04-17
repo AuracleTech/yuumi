@@ -65,7 +65,7 @@ pub(crate) unsafe fn create_pipeline(device: &Device, data: &mut AppData) -> Res
         .depth_bias_enable(false);
 
     let multisample_state = vk::PipelineMultisampleStateCreateInfo::builder()
-        .sample_shading_enable(false)
+        .sample_shading_enable(data.setting_sample_shading)
         .rasterization_samples(data.msaa_samples);
 
     let attachment = vk::PipelineColorBlendAttachmentState::builder()

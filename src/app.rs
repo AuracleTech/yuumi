@@ -372,4 +372,6 @@ pub(crate) struct AppData {
     pub(crate) color_image: vk::Image,
     pub(crate) color_image_memory: vk::DeviceMemory,
     pub(crate) color_image_view: vk::ImageView,
+
+    pub(crate) setting_sample_shading: bool,
 }

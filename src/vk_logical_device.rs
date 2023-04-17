@@ -35,7 +35,9 @@ pub(crate) unsafe fn create_logical_device(
         layers.push(VALIDATION_LAYER.as_ptr());
     }
 
-    let features = vk::PhysicalDeviceFeatures::builder().sampler_anisotropy(true);
+    let features = vk::PhysicalDeviceFeatures::builder()
+        .sampler_anisotropy(true)
+        .sample_rate_shading(data.setting_sample_shading);
 
     let extensions = DEVICE_EXTENSIONS
         .iter()
