@@ -11,6 +11,7 @@ use vulkanalia::vk::KhrSurfaceExtension;
 use vulkanalia::Instance;
 
 use crate::app::AppData;
+use crate::vk_msaa::get_max_msaa_samples;
 use crate::vk_swapchain::SwapchainSupport;
 
 pub(crate) const DEVICE_EXTENSIONS: &[vk::ExtensionName] = &[vk::KHR_SWAPCHAIN_EXTENSION.name];
@@ -82,6 +83,7 @@ pub(crate) unsafe fn pick_physical_device(instance: &Instance, data: &mut AppDat
         } else {
             info!("Selected physical device (`{}`).", properties.device_name);
             data.physical_device = physical_device;
+            data.msaa_samples = get_max_msaa_samples(instance, data);
             return Ok(());
         }
     }

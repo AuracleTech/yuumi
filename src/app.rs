@@ -19,6 +19,7 @@ use crate::vk_framebuffer::create_framebuffers;
 use crate::vk_image_view::{create_swapchain_image_views, create_texture_image_view};
 use crate::vk_instance::create_instance;
 use crate::vk_logical_device::create_logical_device;
+use crate::vk_msaa::create_color_objects;
 use crate::vk_physical_device::pick_physical_device;
 use crate::vk_pipeline::create_pipeline;
 use crate::vk_render_pass::create_render_pass;
@@ -61,6 +62,7 @@ impl App {
         create_descriptor_set_layout(&device, &mut data)?;
         create_pipeline(&device, &mut data)?;
         create_command_pool(&instance, &device, &mut data)?;
+        create_color_objects(&instance, &device, &mut data)?;
         create_depth_objects(&instance, &device, &mut data)?;
         create_framebuffers(&device, &mut data)?;
         create_texture_image(&instance, &device, &mut data)?;
@@ -228,6 +230,7 @@ impl App {
         create_swapchain_image_views(&self.device, &mut self.data)?;
         create_render_pass(&self.instance, &self.device, &mut self.data)?;
         create_pipeline(&self.device, &mut self.data)?;
+        create_color_objects(&self.instance, &self.device, &mut self.data)?;
         create_depth_objects(&self.instance, &self.device, &mut self.data)?;
         create_framebuffers(&self.device, &mut self.data)?;
         create_uniform_buffers(&self.instance, &self.device, &mut self.data)?;
@@ -241,6 +244,10 @@ impl App {
     }
 
     unsafe fn destroy_swapchain(&mut self) {
+        self.device
+            .destroy_image_view(self.data.color_image_view, None);
+        self.device.free_memory(self.data.color_image_memory, None);
+        self.device.destroy_image(self.data.color_image, None);
         self.device
             .destroy_image_view(self.data.depth_image_view, None);
         self.device.free_memory(self.data.depth_image_memory, None);
@@ -324,6 +331,7 @@ pub(crate) struct AppData {
     pub(crate) surface: vk::SurfaceKHR,
     pub(crate) messenger: vk::DebugUtilsMessengerEXT,
     pub(crate) physical_device: vk::PhysicalDevice,
+    pub(crate) msaa_samples: vk::SampleCountFlags,
     pub(crate) graphics_queue: vk::Queue,
     pub(crate) present_queue: vk::Queue,
     pub(crate) swapchain_format: vk::Format,
@@ -361,4 +369,7 @@ pub(crate) struct AppData {
     pub(crate) depth_image: vk::Image,
     pub(crate) depth_image_memory: vk::DeviceMemory,
     pub(crate) depth_image_view: vk::ImageView,
+    pub(crate) color_image: vk::Image,
+    pub(crate) color_image_memory: vk::DeviceMemory,
+    pub(crate) color_image_view: vk::ImageView,
 }

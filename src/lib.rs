@@ -9,6 +9,7 @@ mod vk_generate_mipmaps;
 mod vk_image_view;
 mod vk_instance;
 mod vk_logical_device;
+mod vk_msaa;
 mod vk_physical_device;
 mod vk_pipeline;
 mod vk_render_pass;
@@ -69,7 +70,7 @@ pub fn start(app_name: &str) -> Result<()> {
                 let elapsed = instant.elapsed();
 
                 if Instant::now() - last_performance_update > Duration::from_millis(200) {
-                    log::info!("elapsed: {:?}", elapsed);
+                    log::info!("render {:?}", elapsed);
                     last_performance_update = Instant::now();
                 }
             }
