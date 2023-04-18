@@ -96,6 +96,13 @@ pub(crate) unsafe fn create_command_buffers(device: &Device, data: &mut AppData)
             0,
             model_bytes,
         );
+        device.cmd_push_constants(
+            *command_buffer,
+            data.pipeline_layout,
+            vk::ShaderStageFlags::FRAGMENT,
+            64,
+            &0.25f32.to_ne_bytes()[..],
+        );
         device.cmd_draw_indexed(*command_buffer, data.indices.len() as u32, 1, 0, 0, 0);
 
         device.cmd_end_render_pass(*command_buffer);

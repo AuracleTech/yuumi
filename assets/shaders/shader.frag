@@ -6,9 +6,11 @@ layout(location = 1) in vec2 fragTexCoord;
 layout(location = 0) out vec4 outColor;
 layout(binding = 1) uniform sampler2D texSampler;
 
+layout(push_constant) uniform PushConstants {
+    layout(offset = 64) float opacity;
+} pcs;
+
+
 void main() {
-    outColor = texture(texSampler, fragTexCoord);
-    if (outColor.a < 0.1) {
-        discard;
-    }
+    outColor = vec4(texture(texSampler, fragTexCoord).rgb, pcs.opacity);
 }
