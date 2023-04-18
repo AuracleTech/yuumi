@@ -1,5 +1,3 @@
-use std::time::Instant;
-
 use anyhow::{anyhow, Result};
 
 use winit::window::Window;
@@ -44,7 +42,6 @@ pub(crate) struct App {
     pub(crate) frame: usize,
     pub(crate) resized: bool,
     pub(crate) minimized: bool,
-    pub(crate) start: Instant,
 }
 
 impl App {
@@ -86,7 +83,6 @@ impl App {
             frame: 0,
             resized: false,
             minimized: false,
-            start: Instant::now(),
         })
     }
 
