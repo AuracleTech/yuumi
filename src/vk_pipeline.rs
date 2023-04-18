@@ -7,8 +7,16 @@ use crate::app::AppData;
 use crate::vk_vertex::Vertex;
 
 pub(crate) unsafe fn create_pipeline(device: &Device, data: &mut AppData) -> Result<()> {
+    let vert_push_constant_range = vk::PushConstantRange::builder()
+        .stage_flags(vk::ShaderStageFlags::VERTEX)
+        .offset(0)
+        .size(64 /* 16 × 4 byte floats */);
+
     let set_layouts = &[data.descriptor_set_layout];
-    let layout_info = vk::PipelineLayoutCreateInfo::builder().set_layouts(set_layouts);
+    let push_constant_ranges = &[vert_push_constant_range];
+    let layout_info = vk::PipelineLayoutCreateInfo::builder()
+        .set_layouts(set_layouts)
+        .push_constant_ranges(push_constant_ranges);
     data.pipeline_layout = device.create_pipeline_layout(&layout_info, None)?;
 
     let vert = include_bytes!("../lib/vert.spv");

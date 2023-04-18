@@ -21,6 +21,14 @@ pub(crate) unsafe fn create_command_pool(
 }
 
 pub(crate) unsafe fn create_command_buffers(device: &Device, data: &mut AppData) -> Result<()> {
+    let model: cgmath::Matrix4<f32> = <cgmath::Matrix4<f32>>::from_angle_z(cgmath::Deg(22.5));
+    let model_bytes = unsafe {
+        std::slice::from_raw_parts(
+            &model as *const cgmath::Matrix4<f32> as *const u8,
+            std::mem::size_of::<cgmath::Matrix4<f32>>(),
+        )
+    };
+
     let allocate_info = vk::CommandBufferAllocateInfo::builder()
         .command_pool(data.command_pool)
         .level(vk::CommandBufferLevel::PRIMARY)
@@ -80,6 +88,13 @@ pub(crate) unsafe fn create_command_buffers(device: &Device, data: &mut AppData)
             0,
             &[data.descriptor_sets[i]],
             &[],
+        );
+        device.cmd_push_constants(
+            *command_buffer,
+            data.pipeline_layout,
+            vk::ShaderStageFlags::VERTEX,
+            0,
+            model_bytes,
         );
         device.cmd_draw_indexed(*command_buffer, data.indices.len() as u32, 1, 0, 0, 0);
 

@@ -187,12 +187,6 @@ impl App {
     }
 
     unsafe fn update_uniform_buffer(&self, image_index: usize) -> Result<()> {
-        let time = self.start.elapsed().as_secs_f32();
-
-        // let identity = <cgmath::Matrix4<f32> as cgmath::SquareMatrix>::identity();
-
-        let model = <cgmath::Matrix4<f32>>::from_angle_z(cgmath::Deg(time * 10.0));
-
         let view = <cgmath::Matrix4<f32>>::look_at_rh(
             cgmath::Point3::new(2.0, 2.0, 2.0),
             cgmath::Point3::new(0.0, 0.0, 0.0),
@@ -205,7 +199,7 @@ impl App {
 
         proj.y.y *= -1.0;
 
-        let ubo = UniformBufferObject { model, view, proj };
+        let ubo = UniformBufferObject { view, proj };
 
         // OPTIMIZE use push constants
         let memory = self.device.map_memory(
@@ -373,7 +367,8 @@ pub(crate) struct AppData {
     pub(crate) color_image_memory: vk::DeviceMemory,
     pub(crate) color_image_view: vk::ImageView,
 
-    pub(crate) max_sampler_anisotropy: f32,
+    pub(crate) limit_max_sampler_anisotropy: f32,
+    pub(crate) limit_max_push_constants_size: u32,
 
     pub(crate) setting_anisotropy: bool,
     pub(crate) setting_max_sampler_anisotropy: f32,
