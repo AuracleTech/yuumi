@@ -84,6 +84,13 @@ pub(crate) unsafe fn pick_physical_device(instance: &Instance, data: &mut AppDat
             info!("Selected physical device (`{}`).", properties.device_name);
             data.physical_device = physical_device;
             data.msaa_samples = get_max_msaa_samples(instance, data);
+
+            data.max_sampler_anisotropy = properties.limits.max_sampler_anisotropy;
+
+            // TODO settings file
+            data.setting_anisotropy = true;
+            data.setting_max_sampler_anisotropy = data.max_sampler_anisotropy;
+            data.setting_sample_shading = true;
             return Ok(());
         }
     }

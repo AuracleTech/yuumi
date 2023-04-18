@@ -36,7 +36,7 @@ pub(crate) unsafe fn create_logical_device(
     }
 
     let features = vk::PhysicalDeviceFeatures::builder()
-        .sampler_anisotropy(true)
+        .sampler_anisotropy(data.setting_anisotropy)
         .sample_rate_shading(data.setting_sample_shading);
 
     let extensions = DEVICE_EXTENSIONS

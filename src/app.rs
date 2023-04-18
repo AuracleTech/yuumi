@@ -373,5 +373,9 @@ pub(crate) struct AppData {
     pub(crate) color_image_memory: vk::DeviceMemory,
     pub(crate) color_image_view: vk::ImageView,
 
+    pub(crate) max_sampler_anisotropy: f32,
+
+    pub(crate) setting_anisotropy: bool,
+    pub(crate) setting_max_sampler_anisotropy: f32,
     pub(crate) setting_sample_shading: bool,
 }
