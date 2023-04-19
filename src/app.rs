@@ -8,6 +8,7 @@ use vulkanalia::vk::{ExtDebugUtilsExtension, KhrSurfaceExtension, KhrSwapchainEx
 use vulkanalia::window::create_surface;
 use vulkanalia::Device;
 
+use crate::metrics::Metrics;
 use crate::model::load_model;
 use crate::vk_command_buffer::{create_command_buffers, create_command_pool};
 use crate::vk_depth_object::create_depth_objects;
@@ -30,18 +31,17 @@ use crate::vk_vertex::Vertex;
 use crate::vk_vertex_buffer::{create_index_buffer, create_vertex_buffer};
 use crate::{MAX_FRAMES_IN_FLIGHT, VALIDATION_ENABLED};
 
-/// Our Vulkan app.
-#[derive(Clone, Debug)]
+#[derive(Debug)]
 pub(crate) struct App {
     _entry: Entry,
     instance: Instance,
     data: AppData,
     pub(crate) device: Device,
     pub(crate) destroying: bool,
-    pub(crate) total_frames: u64,
     pub(crate) frame: usize,
     pub(crate) resized: bool,
     pub(crate) minimized: bool,
+    pub(crate) metrics: Metrics,
 }
 
 impl App {
@@ -79,10 +79,10 @@ impl App {
             data,
             device,
             destroying: false,
-            total_frames: 0,
             frame: 0,
             resized: false,
             minimized: false,
+            metrics: Metrics::default(),
         })
     }
 
