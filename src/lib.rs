@@ -60,9 +60,9 @@ pub fn start(app_name: &str) -> Result<()> {
         match event {
             // Render a frame if our Vulkan app is not being destroyed.
             Event::MainEventsCleared if !app.destroying && !app.minimized => {
-                app.performance_metrics.start_frame();
+                app.metrics.start_frame();
                 unsafe { app.render(&window) }.expect("Failed to render");
-                app.performance_metrics.end_frame();
+                app.metrics.end_frame();
             }
             // Destroy our Vulkan app.
             Event::WindowEvent {
