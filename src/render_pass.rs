@@ -2,7 +2,7 @@ use anyhow::Result;
 
 use vulkanalia::prelude::v1_0::*;
 
-use crate::{app::AppData, vk_depth_object::get_depth_format};
+use crate::{app::AppData, depth_object::get_depth_format};
 
 pub(crate) unsafe fn create_render_pass(
     instance: &Instance,

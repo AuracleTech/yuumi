@@ -2,7 +2,7 @@ use anyhow::Result;
 
 use vulkanalia::prelude::v1_0::*;
 
-use crate::{app::AppData, vk_image_view::create_image_view, vk_texture_image::create_image};
+use crate::{app::AppData, image_view::create_image_view, texture_image::create_image};
 
 pub(crate) unsafe fn get_max_msaa_samples(
     instance: &Instance,

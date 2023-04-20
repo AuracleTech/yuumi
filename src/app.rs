@@ -8,31 +8,37 @@ use vulkanalia::vk::{ExtDebugUtilsExtension, KhrSurfaceExtension, KhrSwapchainEx
 use vulkanalia::window::create_surface;
 use vulkanalia::Device;
 
+use crate::command_buffer::{create_command_buffers, create_command_pools};
+use crate::depth_object::create_depth_objects;
+use crate::descriptor_layout::create_descriptor_set_layout;
+use crate::descriptor_pool::{create_descriptor_pool, create_descriptor_sets};
+use crate::framebuffer::create_framebuffers;
+use crate::image_view::{create_swapchain_image_views, create_texture_image_view};
+use crate::instance::create_instance;
+use crate::logical_device::create_logical_device;
 use crate::metrics::Metrics;
 use crate::model::load_model;
-use crate::vk_command_buffer::{create_command_buffers, create_command_pools};
-use crate::vk_depth_object::create_depth_objects;
-use crate::vk_descriptor_layout::create_descriptor_set_layout;
-use crate::vk_descriptor_pool::{create_descriptor_pool, create_descriptor_sets};
-use crate::vk_framebuffer::create_framebuffers;
-use crate::vk_image_view::{create_swapchain_image_views, create_texture_image_view};
-use crate::vk_instance::create_instance;
-use crate::vk_logical_device::create_logical_device;
-use crate::vk_msaa::create_color_objects;
-use crate::vk_physical_device::pick_physical_device;
-use crate::vk_pipeline::create_pipeline;
-use crate::vk_render_pass::create_render_pass;
-use crate::vk_swapchain::create_swapchain;
-use crate::vk_sync_object::create_sync_objects;
-use crate::vk_texture_image::create_texture_image;
-use crate::vk_texture_sampler::create_texture_sampler;
-use crate::vk_uniform_buffer::{create_uniform_buffers, UniformBufferObject};
+use crate::msaa::create_color_objects;
+use crate::physical_device::pick_physical_device;
+use crate::pipeline::create_pipeline;
+use crate::render_pass::create_render_pass;
+use crate::swapchain::create_swapchain;
+use crate::sync_object::create_sync_objects;
+use crate::texture_image::create_texture_image;
+use crate::texture_sampler::create_texture_sampler;
+use crate::uniform_buffer::{create_uniform_buffers, UniformBufferObject};
 use crate::vertex::Vertex;
-use crate::vk_vertex_buffer::{create_index_buffer, create_vertex_buffer};
-use crate::{MAX_FRAMES_IN_FLIGHT, VALIDATION_ENABLED};
+use crate::vertex_buffer::{create_index_buffer, create_vertex_buffer};
+
+pub(crate) const MAX_FRAMES_IN_FLIGHT: usize = 2;
+
+pub(crate) const VALIDATION_ENABLED: bool = cfg!(debug_assertions);
+
+pub(crate) const VALIDATION_LAYER: vk::ExtensionName =
+    vk::ExtensionName::from_bytes(b"VK_LAYER_KHRONOS_validation");
 
 #[derive(Debug)]
-pub(crate) struct App {
+pub(crate) struct VulkanApp {
     _entry: Entry,
     instance: Instance,
     data: AppData,
@@ -44,46 +50,49 @@ pub(crate) struct App {
     pub(crate) metrics: Metrics,
 }
 
-impl App {
-    pub(crate) unsafe fn create(window: &Window) -> Result<Self> {
-        let loader = LibloadingLoader::new(LIBRARY)?;
-        let _entry = Entry::new(loader).map_err(|b| anyhow!("{}", b))?;
-        let mut data = AppData::default();
-        let instance = create_instance(window, &_entry, &mut data)?;
-        data.surface = create_surface(&instance, &window, &window)?;
-        pick_physical_device(&instance, &mut data)?;
-        let device = create_logical_device(&instance, &mut data)?;
-        create_swapchain(window, &instance, &device, &mut data)?;
-        create_swapchain_image_views(&device, &mut data)?;
-        create_render_pass(&instance, &device, &mut data)?;
-        create_descriptor_set_layout(&device, &mut data)?;
-        create_pipeline(&device, &mut data)?;
-        create_command_pools(&instance, &device, &mut data)?;
-        create_color_objects(&instance, &device, &mut data)?;
-        create_depth_objects(&instance, &device, &mut data)?;
-        create_framebuffers(&device, &mut data)?;
-        create_texture_image(&instance, &device, &mut data)?;
-        create_texture_image_view(&device, &mut data)?;
-        create_texture_sampler(&device, &mut data)?;
-        load_model(&mut data)?;
-        create_vertex_buffer(&instance, &device, &mut data)?;
-        create_index_buffer(&instance, &device, &mut data)?;
-        create_uniform_buffers(&instance, &device, &mut data)?;
-        create_descriptor_pool(&device, &mut data)?;
-        create_descriptor_sets(&device, &mut data)?;
-        create_command_buffers(&device, &mut data)?;
-        create_sync_objects(&device, &mut data)?;
-        Ok(Self {
-            _entry,
-            instance,
-            data,
-            device,
-            destroying: false,
-            frame: 0,
-            resized: false,
-            minimized: false,
-            metrics: Metrics::default(),
-        })
+impl VulkanApp {
+    pub(crate) fn new(window: &Window) -> Result<Self> {
+        unsafe {
+            let loader = LibloadingLoader::new(LIBRARY)?;
+            let _entry = Entry::new(loader).map_err(|b| anyhow!("{}", b))?;
+            let mut data = AppData::default();
+            let instance = create_instance(&window, &_entry, &mut data)?;
+            data.surface = create_surface(&instance, &window, &window)?;
+            pick_physical_device(&instance, &mut data)?;
+            let device = create_logical_device(&instance, &mut data)?;
+            create_swapchain(&window, &instance, &device, &mut data)?;
+            create_swapchain_image_views(&device, &mut data)?;
+            create_render_pass(&instance, &device, &mut data)?;
+            create_descriptor_set_layout(&device, &mut data)?;
+            create_pipeline(&device, &mut data)?;
+            create_command_pools(&instance, &device, &mut data)?;
+            create_color_objects(&instance, &device, &mut data)?;
+            create_depth_objects(&instance, &device, &mut data)?;
+            create_framebuffers(&device, &mut data)?;
+            create_texture_image(&instance, &device, &mut data)?;
+            create_texture_image_view(&device, &mut data)?;
+            create_texture_sampler(&device, &mut data)?;
+            load_model(&mut data)?;
+            create_vertex_buffer(&instance, &device, &mut data)?;
+            create_index_buffer(&instance, &device, &mut data)?;
+            create_uniform_buffers(&instance, &device, &mut data)?;
+            create_descriptor_pool(&device, &mut data)?;
+            create_descriptor_sets(&device, &mut data)?;
+            create_command_buffers(&device, &mut data)?;
+            create_sync_objects(&device, &mut data)?;
+
+            Ok(Self {
+                _entry,
+                instance,
+                data,
+                device,
+                destroying: false,
+                frame: 0,
+                resized: false,
+                minimized: false,
+                metrics: Metrics::default(),
+            })
+        }
     }
 
     pub(crate) unsafe fn render(&mut self, window: &Window) -> Result<()> {
@@ -424,7 +433,7 @@ impl App {
     }
 }
 
-impl Drop for App {
+impl Drop for VulkanApp {
     fn drop(&mut self) {
         unsafe {
             self.destroy_swapchain();

@@ -2,7 +2,7 @@ use anyhow::Result;
 
 use vulkanalia::prelude::v1_0::*;
 
-use crate::{app::AppData, MAX_FRAMES_IN_FLIGHT};
+use crate::app::{AppData, MAX_FRAMES_IN_FLIGHT};
 
 pub(crate) unsafe fn create_sync_objects(device: &Device, data: &mut AppData) -> Result<()> {
     let semaphore_info = vk::SemaphoreCreateInfo::builder();

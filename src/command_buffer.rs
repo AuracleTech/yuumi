@@ -2,7 +2,7 @@ use anyhow::Result;
 
 use vulkanalia::prelude::v1_0::*;
 
-use crate::{app::AppData, vk_physical_device::QueueFamilyIndices};
+use crate::{app::AppData, physical_device::QueueFamilyIndices};
 
 pub(crate) unsafe fn create_command_pools(
     instance: &Instance,

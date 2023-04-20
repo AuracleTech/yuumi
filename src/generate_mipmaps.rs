@@ -4,7 +4,7 @@ use vulkanalia::prelude::v1_0::*;
 
 use crate::{
     app::AppData,
-    vk_single_time_cmd::{begin_single_time_commands, end_single_time_commands},
+    single_time_cmd::{begin_single_time_commands, end_single_time_commands},
 };
 
 // OPTIMIZE pregenerate and store texture file mipmaps alongside the base level to improve loading speed

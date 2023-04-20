@@ -6,7 +6,7 @@ use vulkanalia::prelude::v1_0::*;
 use vulkanalia::vk::{KhrSurfaceExtension, KhrSwapchainExtension};
 
 use crate::app::AppData;
-use crate::vk_physical_device::QueueFamilyIndices;
+use crate::physical_device::QueueFamilyIndices;
 
 #[derive(Clone, Debug)]
 pub(crate) struct SwapchainSupport {

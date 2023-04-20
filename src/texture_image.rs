@@ -4,10 +4,10 @@ use vulkanalia::prelude::v1_0::*;
 
 use crate::{
     app::AppData,
-    vk_generate_mipmaps::generate_mipmaps,
-    vk_single_time_cmd::{begin_single_time_commands, end_single_time_commands},
-    vk_vertex_buffer::create_buffer,
-    vk_vertex_buffer::get_memory_type_index,
+    generate_mipmaps::generate_mipmaps,
+    single_time_cmd::{begin_single_time_commands, end_single_time_commands},
+    vertex_buffer::create_buffer,
+    vertex_buffer::get_memory_type_index,
 };
 
 pub(crate) unsafe fn create_texture_image(

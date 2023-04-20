@@ -5,10 +5,8 @@ use anyhow::Result;
 use vulkanalia::prelude::v1_0::*;
 use vulkanalia::Device;
 
-use crate::vk_physical_device::{QueueFamilyIndices, DEVICE_EXTENSIONS};
-use crate::{VALIDATION_ENABLED, VALIDATION_LAYER};
-
-use crate::app::AppData;
+use crate::app::{AppData, VALIDATION_ENABLED, VALIDATION_LAYER};
+use crate::physical_device::{QueueFamilyIndices, DEVICE_EXTENSIONS};
 
 pub(crate) unsafe fn create_logical_device(
     instance: &Instance,

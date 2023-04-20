@@ -11,8 +11,8 @@ use vulkanalia::vk::KhrSurfaceExtension;
 use vulkanalia::Instance;
 
 use crate::app::AppData;
-use crate::vk_msaa::get_max_msaa_samples;
-use crate::vk_swapchain::SwapchainSupport;
+use crate::msaa::get_max_msaa_samples;
+use crate::swapchain::SwapchainSupport;
 
 pub(crate) const DEVICE_EXTENSIONS: &[vk::ExtensionName] = &[vk::KHR_SWAPCHAIN_EXTENSION.name];
 

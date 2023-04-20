@@ -12,7 +12,7 @@ use log::*;
 
 use anyhow::{anyhow, Result};
 
-use crate::{app::AppData, VALIDATION_ENABLED, VALIDATION_LAYER};
+use crate::app::{AppData, VALIDATION_ENABLED, VALIDATION_LAYER};
 
 const PORTABILITY_MACOS_VERSION: Version = Version::new(1, 3, 216);
 

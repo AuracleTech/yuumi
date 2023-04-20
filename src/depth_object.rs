@@ -4,8 +4,8 @@ use vulkanalia::prelude::v1_0::*;
 
 use crate::{
     app::AppData,
-    vk_image_view::create_image_view,
-    vk_texture_image::{create_image, transition_image_layout},
+    image_view::create_image_view,
+    texture_image::{create_image, transition_image_layout},
 };
 
 pub(crate) unsafe fn create_depth_objects(

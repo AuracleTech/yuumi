@@ -2,7 +2,7 @@ use anyhow::Result;
 
 use vulkanalia::prelude::v1_0::*;
 
-use crate::{app::AppData, vk_vertex_buffer::create_buffer};
+use crate::{app::AppData, vertex_buffer::create_buffer};
 
 #[repr(C)]
 #[derive(Copy, Clone, Debug)]
