@@ -189,17 +189,6 @@ impl App {
 
         let command_buffer = self.data.command_buffers[image_index];
 
-        let time = self.metrics.engine_start.elapsed().as_secs_f32();
-
-        let model: cgmath::Matrix4<f32> =
-            <cgmath::Matrix4<f32>>::from_angle_z(cgmath::Deg(time * 5.0));
-        let model_bytes = unsafe {
-            std::slice::from_raw_parts(
-                &model as *const cgmath::Matrix4<f32> as *const u8,
-                std::mem::size_of::<cgmath::Matrix4<f32>>(),
-            )
-        };
-
         let info = vk::CommandBufferBeginInfo::builder()
             .flags(vk::CommandBufferUsageFlags::ONE_TIME_SUBMIT);
 
@@ -229,8 +218,83 @@ impl App {
             .render_area(render_area)
             .clear_values(clear_values);
 
+        self.device.cmd_begin_render_pass(
+            command_buffer,
+            &info,
+            vk::SubpassContents::SECONDARY_COMMAND_BUFFERS,
+        );
+
+        let secondary_command_buffers = (0..4)
+            .map(|i| self.update_secondary_command_buffer(image_index, i))
+            .collect::<Result<Vec<_>, _>>()?;
         self.device
-            .cmd_begin_render_pass(command_buffer, &info, vk::SubpassContents::INLINE);
+            .cmd_execute_commands(command_buffer, &secondary_command_buffers[..]);
+
+        self.device.cmd_end_render_pass(command_buffer);
+
+        self.device.end_command_buffer(command_buffer)?;
+
+        Ok(())
+    }
+
+    unsafe fn update_secondary_command_buffer(
+        &mut self,
+        image_index: usize,
+        model_index: usize,
+    ) -> Result<vk::CommandBuffer> {
+        // Allocate
+        let secondary_command_buffers = &mut self.data.secondary_command_buffers[image_index];
+        while model_index >= secondary_command_buffers.len() {
+            let allocate_info = vk::CommandBufferAllocateInfo::builder()
+                .command_pool(self.data.command_pools[image_index])
+                .level(vk::CommandBufferLevel::SECONDARY)
+                .command_buffer_count(1);
+
+            let command_buffer = self.device.allocate_command_buffers(&allocate_info)?[0];
+            secondary_command_buffers.push(command_buffer);
+        }
+
+        let command_buffer = secondary_command_buffers[model_index];
+
+        // Push constants
+        let time = self.metrics.engine_start.elapsed().as_secs_f32();
+
+        let y = (((model_index % 2) as f32) * 2.5) - 1.25;
+        let z = (((model_index / 2) as f32) * -2.0) + 1.0;
+
+        let model = cgmath::Matrix4::from_translation(cgmath::Vector3::new(0.0, y, z));
+
+        let rotation = cgmath::Quaternion::from(cgmath::Euler {
+            x: cgmath::Deg(0.0),
+            y: cgmath::Deg(0.0),
+            z: cgmath::Deg(time * 5.0),
+        });
+
+        let model = model * cgmath::Matrix4::from(rotation);
+
+        let model_bytes = unsafe {
+            std::slice::from_raw_parts(
+                &model as *const cgmath::Matrix4<f32> as *const u8,
+                std::mem::size_of::<cgmath::Matrix4<f32>>(),
+            )
+        };
+
+        let opacity = 1.0 - (model_index as f32 * 0.3);
+        let opacity_bytes = opacity.to_ne_bytes();
+
+        // Commands
+
+        let inheritance_info = vk::CommandBufferInheritanceInfo::builder()
+            .render_pass(self.data.render_pass)
+            .subpass(0)
+            .framebuffer(self.data.framebuffers[image_index]);
+
+        let info = vk::CommandBufferBeginInfo::builder()
+            .flags(vk::CommandBufferUsageFlags::RENDER_PASS_CONTINUE)
+            .inheritance_info(&inheritance_info);
+
+        self.device.begin_command_buffer(command_buffer, &info)?;
+
         self.device.cmd_bind_pipeline(
             command_buffer,
             vk::PipelineBindPoint::GRAPHICS,
@@ -264,20 +328,19 @@ impl App {
             self.data.pipeline_layout,
             vk::ShaderStageFlags::FRAGMENT,
             64,
-            &0.25f32.to_ne_bytes()[..],
+            &opacity_bytes,
         );
         self.device
             .cmd_draw_indexed(command_buffer, self.data.indices.len() as u32, 1, 0, 0, 0);
-        self.device.cmd_end_render_pass(command_buffer);
 
         self.device.end_command_buffer(command_buffer)?;
 
-        Ok(())
+        Ok(command_buffer)
     }
 
     unsafe fn update_uniform_buffer(&self, image_index: usize) -> Result<()> {
         let view = <cgmath::Matrix4<f32>>::look_at_rh(
-            cgmath::Point3::new(2.0, 2.0, 2.0),
+            cgmath::Point3::new(6.0, 0.0, 2.0),
             cgmath::Point3::new(0.0, 0.0, 0.0),
             cgmath::Vector3::unit_z(),
         );
@@ -432,6 +495,7 @@ pub(crate) struct AppData {
     pub(crate) command_pool: vk::CommandPool,
     pub(crate) command_pools: Vec<vk::CommandPool>,
     pub(crate) command_buffers: Vec<vk::CommandBuffer>,
+    pub(crate) secondary_command_buffers: Vec<Vec<vk::CommandBuffer>>,
     pub(crate) image_available_semaphores: Vec<vk::Semaphore>,
     pub(crate) render_finished_semaphores: Vec<vk::Semaphore>,
     pub(crate) in_flight_fences: Vec<vk::Fence>,

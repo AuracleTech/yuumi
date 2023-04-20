@@ -46,5 +46,7 @@ pub(crate) unsafe fn create_command_buffers(device: &Device, data: &mut AppData)
         data.command_buffers.push(command_buffer);
     }
 
+    data.secondary_command_buffers = vec![vec![]; data.swapchain_images.len()];
+
     Ok(())
 }
