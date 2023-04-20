@@ -20,7 +20,7 @@ mod vk_sync_object;
 mod vk_texture_image;
 mod vk_texture_sampler;
 mod vk_uniform_buffer;
-mod vk_vertex;
+mod vertex;
 mod vk_vertex_buffer;
 
 use winit::dpi::LogicalSize;

@@ -4,7 +4,7 @@ use vulkanalia::prelude::v1_0::*;
 use vulkanalia::Device;
 
 use crate::app::AppData;
-use crate::vk_vertex::Vertex;
+use crate::vertex::Vertex;
 
 pub(crate) unsafe fn create_pipeline(device: &Device, data: &mut AppData) -> Result<()> {
     let vert_push_constant_range = vk::PushConstantRange::builder()

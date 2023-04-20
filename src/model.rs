@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use anyhow::Result;
 
-use crate::{app::AppData, vk_vertex::Vertex};
+use crate::{app::AppData, vertex::Vertex};
 
 pub(crate) fn load_model(data: &mut AppData) -> Result<()> {
     let mut reader = std::io::BufReader::new(std::fs::File::open("assets/models/viking_room.obj")?);

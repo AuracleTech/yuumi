@@ -27,7 +27,7 @@ use crate::vk_sync_object::create_sync_objects;
 use crate::vk_texture_image::create_texture_image;
 use crate::vk_texture_sampler::create_texture_sampler;
 use crate::vk_uniform_buffer::{create_uniform_buffers, UniformBufferObject};
-use crate::vk_vertex::Vertex;
+use crate::vertex::Vertex;
 use crate::vk_vertex_buffer::{create_index_buffer, create_vertex_buffer};
 use crate::{MAX_FRAMES_IN_FLIGHT, VALIDATION_ENABLED};
 

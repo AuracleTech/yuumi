@@ -4,8 +4,8 @@ use vulkanalia::prelude::v1_0::*;
 
 use crate::{
     app::AppData,
+    vertex::Vertex,
     vk_single_time_cmd::{begin_single_time_commands, end_single_time_commands},
-    vk_vertex::Vertex,
 };
 
 pub(crate) unsafe fn create_vertex_buffer(
