@@ -49,10 +49,11 @@ impl Metrics {
 
         if self.last_report.elapsed() > CYCLE_REPORT_INTERVAL {
             log::info!(
-                "Slowest {:?} Fastest {:?} Average {:?}",
+                "Slowest {:?} Fastest {:?} Average {:?} Draw calls {}",
                 self.cycle_slowest_render,
                 self.cycle_fastest_render,
                 self.cycle_total_rendered / self.cycle_total_render_count,
+                self.cycle_total_render_count
             );
             self.last_report = Instant::now();
             self.cycle_slowest_render = Duration::from_secs(0);
