@@ -547,9 +547,11 @@ impl Drop for VulkanApp {
             self.device
                 .destroy_descriptor_set_layout(self.data.descriptor_set_layout, None);
 
-            // for each mesh in the assets drop
-            self.assets.meshes.iter().for_each(|(_id, mesh)| {
-                drop(mesh);
+            self.assets.meshes.iter().for_each(|(_, mesh)| {
+                self.device.destroy_buffer(mesh.vertex_buffer, None);
+                self.device.free_memory(mesh.vertex_buffer_memory, None);
+                self.device.destroy_buffer(mesh.index_buffer, None);
+                self.device.free_memory(mesh.index_buffer_memory, None);
             });
 
             self.data

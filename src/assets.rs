@@ -31,14 +31,3 @@ pub(crate) struct Mesh {
     pub(crate) instances: Vec<cgmath::Point3<f32>>,
     pub(crate) index_count: u32,
 }
-
-impl Mesh {
-    fn drop(&mut self, device: &Device) {
-        unsafe {
-            device.destroy_buffer(self.index_buffer, None);
-            device.free_memory(self.index_buffer_memory, None);
-            device.destroy_buffer(self.vertex_buffer, None);
-            device.free_memory(self.vertex_buffer_memory, None);
-        }
-    }
-}
