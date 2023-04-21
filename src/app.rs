@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use anyhow::{anyhow, Result};
 
 use winit::window::Window;
@@ -8,6 +10,7 @@ use vulkanalia::vk::{ExtDebugUtilsExtension, KhrSurfaceExtension, KhrSwapchainEx
 use vulkanalia::window::create_surface;
 use vulkanalia::Device;
 
+use crate::assets::{Assets, Mesh};
 use crate::command_buffer::{create_command_buffers, create_command_pools};
 use crate::depth_object::create_depth_objects;
 use crate::descriptor_layout::create_descriptor_set_layout;
@@ -17,7 +20,6 @@ use crate::image_view::{create_swapchain_image_views, create_texture_image_view}
 use crate::instance::create_instance;
 use crate::logical_device::create_logical_device;
 use crate::metrics::Metrics;
-use crate::model::load_model;
 use crate::msaa::create_color_objects;
 use crate::physical_device::pick_physical_device;
 use crate::pipeline::create_pipeline;
@@ -48,6 +50,7 @@ pub(crate) struct VulkanApp {
     pub(crate) resized: bool,
     pub(crate) minimized: bool,
     pub(crate) metrics: Metrics,
+    pub(crate) assets: Assets,
 }
 
 impl VulkanApp {
@@ -72,9 +75,6 @@ impl VulkanApp {
             create_texture_image(&instance, &device, &mut data)?;
             create_texture_image_view(&device, &mut data)?;
             create_texture_sampler(&device, &mut data)?;
-            load_model(&mut data)?;
-            create_vertex_buffer(&instance, &device, &mut data)?;
-            create_index_buffer(&instance, &device, &mut data)?;
             create_uniform_buffers(&instance, &device, &mut data)?;
             create_descriptor_pool(&device, &mut data)?;
             create_descriptor_sets(&device, &mut data)?;
@@ -91,11 +91,14 @@ impl VulkanApp {
                 resized: false,
                 minimized: false,
                 metrics: Metrics::default(),
+                assets: Assets::default(),
             })
         }
     }
 
     pub(crate) unsafe fn render(&mut self, window: &Window) -> Result<()> {
+        self.metrics.start_frame();
+
         // We wait for the fence of the current frame to finish executing. This is because we're going to re-use this frame's resources.
         self.device.wait_for_fences(
             &[self.data.in_flight_fences[self.frame]],
@@ -188,6 +191,8 @@ impl VulkanApp {
         // We increment the frame index.
         self.frame = (self.frame + 1) % MAX_FRAMES_IN_FLIGHT;
 
+        self.metrics.end_frame();
+
         Ok(())
     }
 
@@ -233,8 +238,26 @@ impl VulkanApp {
             vk::SubpassContents::SECONDARY_COMMAND_BUFFERS,
         );
 
+        let viking_room_mesh = self
+            .assets
+            .meshes
+            .get("viking_room")
+            .expect("Model not found");
+
+        let vertex_buffer = viking_room_mesh.vertex_buffer;
+        let index_buffer = viking_room_mesh.index_buffer;
+        let index_count = viking_room_mesh.index_count;
+
         let secondary_command_buffers = (0..4)
-            .map(|i| self.update_secondary_command_buffer(image_index, i))
+            .map(|model_index| {
+                self.update_secondary_command_buffer(
+                    &vertex_buffer,
+                    &index_buffer,
+                    &index_count,
+                    image_index,
+                    model_index,
+                )
+            })
             .collect::<Result<Vec<_>, _>>()?;
         self.device
             .cmd_execute_commands(command_buffer, &secondary_command_buffers[..]);
@@ -248,6 +271,9 @@ impl VulkanApp {
 
     unsafe fn update_secondary_command_buffer(
         &mut self,
+        vertex_buffer: &vk::Buffer,
+        index_buffer: &vk::Buffer,
+        index_count: &u32,
         image_index: usize,
         model_index: usize,
     ) -> Result<vk::CommandBuffer> {
@@ -310,13 +336,9 @@ impl VulkanApp {
             self.data.pipeline,
         );
         self.device
-            .cmd_bind_vertex_buffers(command_buffer, 0, &[self.data.vertex_buffer], &[0]);
-        self.device.cmd_bind_index_buffer(
-            command_buffer,
-            self.data.index_buffer,
-            0,
-            vk::IndexType::UINT32,
-        );
+            .cmd_bind_vertex_buffers(command_buffer, 0, &[*vertex_buffer], &[0]);
+        self.device
+            .cmd_bind_index_buffer(command_buffer, *index_buffer, 0, vk::IndexType::UINT32);
         self.device.cmd_bind_descriptor_sets(
             command_buffer,
             vk::PipelineBindPoint::GRAPHICS,
@@ -340,7 +362,7 @@ impl VulkanApp {
             &opacity_bytes,
         );
         self.device
-            .cmd_draw_indexed(command_buffer, self.data.indices.len() as u32, 1, 0, 0, 0);
+            .cmd_draw_indexed(command_buffer, *index_count as u32, 1, 0, 0, 0);
 
         self.device.end_command_buffer(command_buffer)?;
 
@@ -374,6 +396,81 @@ impl VulkanApp {
 
         self.device
             .unmap_memory(self.data.uniform_buffers_memory[image_index]);
+
+        Ok(())
+    }
+
+    pub(crate) fn load_model_obj(&mut self, name: &str) -> Result<()> {
+        let path = format!("assets/models/{}.obj", name);
+        let mut reader = std::io::BufReader::new(std::fs::File::open(path)?);
+
+        let (models, _) = tobj::load_obj_buf(
+            &mut reader,
+            &tobj::LoadOptions {
+                triangulate: true,
+                ..Default::default()
+            },
+            |_| Ok(Default::default()),
+        )?;
+
+        let mut vertices = Vec::new();
+        let mut indices = Vec::new();
+
+        for model in &models {
+            let mut unique_vertices = HashMap::new();
+            for index in &model.mesh.indices {
+                let pos_offset = (3 * index) as usize;
+                let tex_coord_offset = (2 * index) as usize;
+
+                let vertex = Vertex {
+                    pos: cgmath::vec3(
+                        model.mesh.positions[pos_offset],
+                        model.mesh.positions[pos_offset + 1],
+                        model.mesh.positions[pos_offset + 2],
+                    ),
+                    color: cgmath::vec3(1.0, 1.0, 1.0),
+                    tex_coord: cgmath::vec2(
+                        model.mesh.texcoords[tex_coord_offset],
+                        1.0 - model.mesh.texcoords[tex_coord_offset + 1],
+                    ),
+                };
+
+                if let Some(index) = unique_vertices.get(&vertex) {
+                    indices.push(*index as u32);
+                } else {
+                    let index = vertices.len();
+                    unique_vertices.insert(vertex, index);
+                    vertices.push(vertex);
+                    indices.push(index as u32);
+                }
+            }
+        }
+
+        unsafe {
+            let (vertex_buffer, vertex_buffer_memory) = create_vertex_buffer(
+                &vertices,
+                &mut self.instance,
+                &mut self.device,
+                &mut self.data,
+            )?;
+            let (index_buffer, index_buffer_memory) = create_index_buffer(
+                &indices,
+                &mut self.instance,
+                &mut self.device,
+                &mut self.data,
+            )?;
+
+            let mesh = Mesh {
+                vertex_buffer,
+                vertex_buffer_memory,
+                index_buffer,
+                index_buffer_memory,
+                instances: Vec::new(),
+                index_count: indices.len() as u32,
+            };
+
+            self.assets.meshes.insert(name.to_string(), mesh);
+        }
 
         Ok(())
     }
@@ -449,11 +546,11 @@ impl Drop for VulkanApp {
                 .free_memory(self.data.texture_image_memory, None);
             self.device
                 .destroy_descriptor_set_layout(self.data.descriptor_set_layout, None);
-            self.device.destroy_buffer(self.data.index_buffer, None);
-            self.device.free_memory(self.data.index_buffer_memory, None);
-            self.device.destroy_buffer(self.data.vertex_buffer, None);
-            self.device
-                .free_memory(self.data.vertex_buffer_memory, None);
+
+            // for each mesh in the assets drop
+            self.assets.meshes.iter().for_each(|(_id, mesh)| {
+                drop(mesh);
+            });
 
             self.data
                 .in_flight_fences
@@ -509,13 +606,7 @@ pub(crate) struct AppData {
     pub(crate) render_finished_semaphores: Vec<vk::Semaphore>,
     pub(crate) in_flight_fences: Vec<vk::Fence>,
     pub(crate) images_in_flight: Vec<vk::Fence>,
-    pub(crate) vertices: Vec<Vertex>,
-    pub(crate) indices: Vec<u32>,
     // OPTIMIZE Use a single buffer for multiple buffers. Requires custom allocator.
-    pub(crate) vertex_buffer: vk::Buffer,
-    pub(crate) vertex_buffer_memory: vk::DeviceMemory,
-    pub(crate) index_buffer: vk::Buffer,
-    pub(crate) index_buffer_memory: vk::DeviceMemory,
     pub(crate) uniform_buffers: Vec<vk::Buffer>,
     pub(crate) uniform_buffers_memory: Vec<vk::DeviceMemory>,
     pub(crate) descriptor_pool: vk::DescriptorPool,

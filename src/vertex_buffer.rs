@@ -9,11 +9,12 @@ use crate::{
 };
 
 pub(crate) unsafe fn create_vertex_buffer(
+    vertices: &Vec<Vertex>,
     instance: &Instance,
     device: &Device,
     data: &mut AppData,
-) -> Result<()> {
-    let size = (std::mem::size_of::<Vertex>() * data.vertices.len()) as u64;
+) -> Result<(vk::Buffer, vk::DeviceMemory)> {
+    let size = (std::mem::size_of::<Vertex>() * vertices.len()) as u64;
 
     let (staging_buffer, staging_buffer_memory) = create_buffer(
         instance,
@@ -26,7 +27,7 @@ pub(crate) unsafe fn create_vertex_buffer(
 
     let memory = device.map_memory(staging_buffer_memory, 0, size, vk::MemoryMapFlags::empty())?;
 
-    std::ptr::copy_nonoverlapping(data.vertices.as_ptr(), memory.cast(), data.vertices.len());
+    std::ptr::copy_nonoverlapping(vertices.as_ptr(), memory.cast(), vertices.len());
 
     device.unmap_memory(staging_buffer_memory);
 
@@ -39,22 +40,20 @@ pub(crate) unsafe fn create_vertex_buffer(
         vk::MemoryPropertyFlags::DEVICE_LOCAL,
     )?;
 
-    data.vertex_buffer = vertex_buffer;
-    data.vertex_buffer_memory = vertex_buffer_memory;
-
     copy_buffer(device, data, staging_buffer, vertex_buffer, size)?;
     device.destroy_buffer(staging_buffer, None);
     device.free_memory(staging_buffer_memory, None);
 
-    Ok(())
+    Ok((vertex_buffer, vertex_buffer_memory))
 }
 
 pub(crate) unsafe fn create_index_buffer(
+    indices: &Vec<u32>,
     instance: &Instance,
     device: &Device,
     data: &mut AppData,
-) -> Result<()> {
-    let size = (std::mem::size_of::<u32>() * data.indices.len()) as u64;
+) -> Result<(vk::Buffer, vk::DeviceMemory)> {
+    let size = (std::mem::size_of::<u32>() * indices.len()) as u64;
 
     let (staging_buffer, staging_buffer_memory) = create_buffer(
         instance,
@@ -67,7 +66,7 @@ pub(crate) unsafe fn create_index_buffer(
 
     let memory = device.map_memory(staging_buffer_memory, 0, size, vk::MemoryMapFlags::empty())?;
 
-    std::ptr::copy_nonoverlapping(data.indices.as_ptr(), memory.cast(), data.indices.len());
+    std::ptr::copy_nonoverlapping(indices.as_ptr(), memory.cast(), indices.len());
 
     device.unmap_memory(staging_buffer_memory);
 
@@ -80,15 +79,12 @@ pub(crate) unsafe fn create_index_buffer(
         vk::MemoryPropertyFlags::DEVICE_LOCAL,
     )?;
 
-    data.index_buffer = index_buffer;
-    data.index_buffer_memory = index_buffer_memory;
-
     copy_buffer(device, data, staging_buffer, index_buffer, size)?;
 
     device.destroy_buffer(staging_buffer, None);
     device.free_memory(staging_buffer_memory, None);
 
-    Ok(())
+    Ok((index_buffer, index_buffer_memory))
 }
 
 pub(crate) unsafe fn get_memory_type_index(
