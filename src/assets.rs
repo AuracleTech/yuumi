@@ -1,3 +1,4 @@
+use cgmath::Point3;
 use vulkanalia::prelude::v1_0::*;
 
 use std::collections::HashMap;
@@ -26,6 +27,6 @@ pub(crate) struct Mesh {
     pub(crate) vertex_buffer_memory: vk::DeviceMemory,
     pub(crate) index_buffer: vk::Buffer,
     pub(crate) index_buffer_memory: vk::DeviceMemory,
-    pub(crate) _instances: Vec<cgmath::Point3<f32>>,
+    pub(crate) instances_positions: Vec<Point3<f32>>,
     pub(crate) index_count: u32,
 }
