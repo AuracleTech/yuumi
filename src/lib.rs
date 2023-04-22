@@ -35,6 +35,8 @@ use winit::{
 };
 
 pub fn run(window_title: &str) -> Result<()> {
+    pretty_env_logger::init();
+
     // Window
 
     let event_loop = EventLoop::new();
