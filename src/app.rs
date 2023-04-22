@@ -242,10 +242,8 @@ impl VulkanApp {
         );
 
         let mut secondary_command_buffers = Vec::new();
-        let secondary_command_buffer_index = 1;
 
-        let secondary_command_buffer =
-            self.update_secondary_command_buffer(image_index, secondary_command_buffer_index)?;
+        let secondary_command_buffer = self.update_secondary_command_buffer(image_index)?;
         secondary_command_buffers.push(secondary_command_buffer);
 
         self.device
@@ -261,10 +259,11 @@ impl VulkanApp {
     unsafe fn update_secondary_command_buffer(
         &mut self,
         image_index: usize,
-        secondary_command_buffer_index: usize,
     ) -> Result<vk::CommandBuffer> {
         // Allocate
         let secondary_command_buffers = &mut self.data.secondary_command_buffers[image_index];
+
+        let secondary_command_buffer_index = 1;
         while secondary_command_buffer_index >= secondary_command_buffers.len() {
             let allocate_info = vk::CommandBufferAllocateInfo::builder()
                 .command_pool(self.data.command_pools[image_index])
@@ -283,34 +282,6 @@ impl VulkanApp {
             .meshes
             .get("viking_room")
             .expect("Model not found");
-        // for instance_position in &viking_room_mesh.instances_positions {
-        // FIX draw per instances
-        // }
-
-        // Push constants
-        let time = self.metrics.engine_start.elapsed().as_secs_f32();
-
-        // FIX multiple instances positions
-        let model =
-            cgmath::Matrix4::from_translation(viking_room_mesh.instances_positions[0].to_vec());
-
-        let rotation = cgmath::Quaternion::from(cgmath::Euler {
-            x: cgmath::Deg(0.0),
-            y: cgmath::Deg(0.0),
-            z: cgmath::Deg(time * 5.0),
-        });
-
-        let model = model * cgmath::Matrix4::from(rotation);
-
-        let model_bytes = unsafe {
-            std::slice::from_raw_parts(
-                &model as *const cgmath::Matrix4<f32> as *const u8,
-                std::mem::size_of::<cgmath::Matrix4<f32>>(),
-            )
-        };
-
-        let opacity = 1.0 - (secondary_command_buffer_index as f32 * 0.3);
-        let opacity_bytes = opacity.to_ne_bytes();
 
         // Commands
 
@@ -331,6 +302,7 @@ impl VulkanApp {
             vk::PipelineBindPoint::GRAPHICS,
             self.data.pipeline,
         );
+
         self.device.cmd_bind_vertex_buffers(
             secondary_command_buffer,
             0,
@@ -351,28 +323,52 @@ impl VulkanApp {
             &[self.data.descriptor_sets[image_index]],
             &[],
         );
-        self.device.cmd_push_constants(
-            secondary_command_buffer,
-            self.data.pipeline_layout,
-            vk::ShaderStageFlags::VERTEX,
-            0,
-            model_bytes,
-        );
-        self.device.cmd_push_constants(
-            secondary_command_buffer,
-            self.data.pipeline_layout,
-            vk::ShaderStageFlags::FRAGMENT,
-            64,
-            &opacity_bytes,
-        );
-        self.device.cmd_draw_indexed(
-            secondary_command_buffer,
-            viking_room_mesh.index_count as u32,
-            1,
-            0,
-            0,
-            0,
-        );
+
+        // Push constants
+
+        let time = self.metrics.engine_start.elapsed().as_secs_f32();
+        let rotation = cgmath::Quaternion::from(cgmath::Euler {
+            x: cgmath::Deg(0.0),
+            y: cgmath::Deg(0.0),
+            z: cgmath::Deg(time * 5.0),
+        });
+        let mut index = 0;
+        for instance_position in &viking_room_mesh.instances_positions {
+            let model = cgmath::Matrix4::from_translation(instance_position.to_vec())
+                * cgmath::Matrix4::from(rotation);
+            let model_bytes = unsafe {
+                std::slice::from_raw_parts(
+                    &model as *const cgmath::Matrix4<f32> as *const u8,
+                    std::mem::size_of::<cgmath::Matrix4<f32>>(),
+                )
+            };
+            self.device.cmd_push_constants(
+                secondary_command_buffer,
+                self.data.pipeline_layout,
+                vk::ShaderStageFlags::VERTEX,
+                0,
+                model_bytes,
+            );
+
+            let opacity = 1.0 - (index as f32 * 0.3);
+            let opacity_bytes = opacity.to_ne_bytes();
+            self.device.cmd_push_constants(
+                secondary_command_buffer,
+                self.data.pipeline_layout,
+                vk::ShaderStageFlags::FRAGMENT,
+                64,
+                &opacity_bytes,
+            );
+            self.device.cmd_draw_indexed(
+                secondary_command_buffer,
+                viking_room_mesh.index_count as u32,
+                1,
+                0,
+                0,
+                0,
+            );
+            index += 1;
+        }
 
         self.device.end_command_buffer(secondary_command_buffer)?;
 
