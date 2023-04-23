@@ -57,34 +57,15 @@ pub(crate) struct VulkanApp {
 impl VulkanApp {
     pub(crate) fn new(window: &Window) -> Result<Self> {
         unsafe {
-            let assets = Assets::default();
             // FIX load assets
             let loader = LibloadingLoader::new(LIBRARY)?;
             let _entry = Entry::new(loader).map_err(|b| anyhow!("{}", b))?;
-            let mut data = AppData::default();
+            let mut data: AppData = AppData::default();
             let instance = create_instance(&window, &_entry, &mut data)?;
             data.surface = create_surface(&instance, &window, &window)?;
             pick_physical_device(&instance, &mut data)?;
             let device = create_logical_device(&instance, &mut data)?;
-            create_swapchain(&window, &instance, &device, &mut data)?;
-            create_swapchain_image_views(&device, &mut data)?;
-            create_render_pass(&instance, &device, &mut data)?;
-            create_descriptor_set_layout(&device, &mut data)?;
-            create_pipeline(&device, &mut data)?;
-            create_command_pools(&instance, &device, &mut data)?;
-            create_color_objects(&instance, &device, &mut data)?;
-            create_depth_objects(&instance, &device, &mut data)?;
-            create_framebuffers(&device, &mut data)?;
-            create_texture_image(&instance, &device, &mut data)?;
-            create_texture_image_view(&device, &mut data)?;
-            create_texture_sampler(&device, &mut data)?;
-            create_uniform_buffers(&instance, &device, &mut data)?;
-            create_descriptor_pool(&device, &mut data)?;
-            create_descriptor_sets(&device, &mut data)?;
-            create_command_buffers(&device, &mut data)?;
-            create_sync_objects(&device, &mut data)?;
-
-            Ok(Self {
+            let mut app = Self {
                 _entry,
                 instance,
                 data,
@@ -94,8 +75,28 @@ impl VulkanApp {
                 resized: false,
                 minimized: false,
                 metrics: Metrics::default(),
-                assets,
-            })
+                assets: Assets::default(),
+            };
+            create_swapchain(&window, &app.instance, &app.device, &mut app.data)?;
+            create_swapchain_image_views(&app.device, &mut app.data)?;
+            create_render_pass(&app.instance, &app.device, &mut app.data)?;
+            create_descriptor_set_layout(&app.device, &mut app.data)?;
+            create_pipeline(&app.device, &mut app.data)?;
+            create_command_pools(&app.instance, &app.device, &mut app.data)?;
+            create_color_objects(&app.instance, &app.device, &mut app.data)?;
+            create_depth_objects(&app.instance, &app.device, &mut app.data)?;
+            create_framebuffers(&app.device, &mut app.data)?;
+            app.load_model_obj("viking_room")?;
+            app.load_texture_png("viking_room")?;
+            create_texture_image_view(&app.device, &mut app.data)?;
+            create_texture_sampler(&app.device, &mut app.data)?;
+            create_uniform_buffers(&app.instance, &app.device, &mut app.data)?;
+            create_descriptor_pool(&app.device, &mut app.data)?;
+            create_descriptor_sets(&app.device, &mut app.data)?;
+            create_command_buffers(&app.device, &mut app.data)?;
+            create_sync_objects(&app.device, &mut app.data)?;
+
+            Ok(app)
         }
     }
 
@@ -404,6 +405,32 @@ impl VulkanApp {
             .unmap_memory(self.data.uniform_buffers_memory[image_index]);
 
         Ok(())
+    }
+
+    pub(crate) fn load_texture_png(&mut self, name: &str) -> Result<()> {
+        let path = format!("assets/models/{}.png", name);
+        let image = std::fs::File::open(path)?;
+
+        let decoder = png::Decoder::new(image);
+        let mut reader = decoder.read_info()?;
+
+        let mut pixels = vec![0; reader.info().raw_bytes()];
+        reader.next_frame(&mut pixels)?;
+
+        let size = reader.info().raw_bytes() as u64;
+        let (width, height) = reader.info().size();
+
+        unsafe {
+            create_texture_image(
+                &mut self.instance,
+                &mut self.device,
+                &mut self.data,
+                &pixels,
+                size,
+                width,
+                height,
+            )
+        }
     }
 
     pub(crate) fn load_model_obj(&mut self, name: &str) -> Result<()> {

@@ -14,18 +14,11 @@ pub(crate) unsafe fn create_texture_image(
     instance: &Instance,
     device: &Device,
     data: &mut AppData,
+    pixels: &Vec<u8>,
+    size: u64,
+    width: u32,
+    height: u32,
 ) -> Result<()> {
-    let image = std::fs::File::open("assets/models/viking_room.png")?;
-
-    let decoder = png::Decoder::new(image);
-    let mut reader = decoder.read_info()?;
-
-    let mut pixels = vec![0; reader.info().raw_bytes()];
-    reader.next_frame(&mut pixels)?;
-
-    let size = reader.info().raw_bytes() as u64;
-    let (width, height) = reader.info().size();
-
     data.mip_levels = (width.max(height) as f32).log2().floor() as u32 + 1;
 
     let (staging_buffer, staging_buffer_memory) = create_buffer(
@@ -81,9 +74,6 @@ pub(crate) unsafe fn create_texture_image(
         height,
     )?;
 
-    device.destroy_buffer(staging_buffer, None);
-    device.free_memory(staging_buffer_memory, None);
-
     generate_mipmaps(
         instance,
         device,
@@ -94,6 +84,9 @@ pub(crate) unsafe fn create_texture_image(
         height,
         data.mip_levels,
     )?;
+
+    device.destroy_buffer(staging_buffer, None);
+    device.free_memory(staging_buffer_memory, None);
 
     Ok(())
 }

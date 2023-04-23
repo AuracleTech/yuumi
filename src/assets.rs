@@ -18,7 +18,7 @@ impl Default for Assets {
 
 #[derive(Debug)]
 pub(crate) struct Texture {
-    // TODO
+    
 }
 
 #[derive(Debug)]

@@ -48,8 +48,6 @@ pub fn run(window_title: &str) -> Result<()> {
     // App
 
     let mut app = VulkanApp::new(&window)?;
-    // TEMP
-    app.load_model_obj("viking_room")?;
 
     event_loop.run(move |event, _, control_flow| {
         *control_flow = ControlFlow::Poll;
