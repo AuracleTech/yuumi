@@ -57,7 +57,6 @@ pub(crate) struct VulkanApp {
 impl VulkanApp {
     pub(crate) fn new(window: &Window) -> Result<Self> {
         unsafe {
-            // FIX load assets
             let loader = LibloadingLoader::new(LIBRARY)?;
             let _entry = Entry::new(loader).map_err(|b| anyhow!("{}", b))?;
             let mut data: AppData = AppData::default();
@@ -96,12 +95,14 @@ impl VulkanApp {
             create_command_buffers(&app.device, &mut app.data)?;
             create_sync_objects(&app.device, &mut app.data)?;
 
+            app.metrics.cycle.start();
+
             Ok(app)
         }
     }
 
     pub(crate) unsafe fn render(&mut self, window: &Window) -> Result<()> {
-        self.metrics.start_frame();
+        self.metrics.cycle.start_frame();
 
         // We wait for the fence of the current frame to finish executing. This is because we're going to re-use this frame's resources.
         self.device.wait_for_fences(
@@ -195,7 +196,8 @@ impl VulkanApp {
         // We increment the frame index.
         self.frame = (self.frame + 1) % MAX_FRAMES_IN_FLIGHT;
 
-        self.metrics.end_frame();
+        self.metrics.cycle.end_frame();
+        self.metrics.total_frames += 1;
 
         Ok(())
     }

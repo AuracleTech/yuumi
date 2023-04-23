@@ -1,65 +1,73 @@
 use std::time::{Duration, Instant};
 
 const CYCLE_REPORT_INTERVAL: Duration = Duration::from_secs(1);
+#[derive(Debug)]
+pub(crate) struct Cycle {
+    start: Instant,
+    frame_start: Instant,
+    slowest_render: Duration,
+    fastest_render: Duration,
+    total_render: Duration,
+    total_frames: u32,
+}
+impl Default for Cycle {
+    fn default() -> Self {
+        Self {
+            start: Instant::now(),
+            frame_start: Instant::now(),
+            slowest_render: Duration::from_secs(0),
+            fastest_render: Duration::from_secs(30),
+            total_render: Duration::from_secs(0),
+            total_frames: 0,
+        }
+    }
+}
+impl Cycle {
+    pub fn start(&mut self) {
+        self.start = Instant::now();
+    }
+
+    pub fn start_frame(&mut self) {
+        self.frame_start = Instant::now();
+    }
+
+    pub fn end_frame(&mut self) {
+        self.total_frames += 1;
+        let elapsed_time = self.frame_start.elapsed();
+        self.total_render += elapsed_time;
+
+        if elapsed_time > self.slowest_render {
+            self.slowest_render = elapsed_time;
+        }
+        if elapsed_time < self.fastest_render {
+            self.fastest_render = elapsed_time;
+        }
+
+        if self.start.elapsed() > CYCLE_REPORT_INTERVAL {
+            log::info!(
+                "Slowest {:?} Fastest {:?} Average {:?} Draw calls {}",
+                self.slowest_render,
+                self.fastest_render,
+                self.total_render / self.total_frames,
+                self.total_frames
+            );
+            *self = Self::default();
+        }
+    }
+}
 
 #[derive(Debug)]
 pub(crate) struct Metrics {
     pub(crate) engine_start: Instant,
-    pub(crate) last_report: Instant,
+    pub(crate) cycle: Cycle,
     pub(crate) total_frames: u64,
-
-    // TODO - Move this to a cycle struct
-    pub(crate) cycle_frame_start: Instant,
-    pub(crate) cycle_slowest_render: Duration,
-    pub(crate) cycle_fastest_render: Duration,
-    pub(crate) cycle_total_rendered: Duration,
-    pub(crate) cycle_total_render_count: u32,
 }
 impl Default for Metrics {
     fn default() -> Self {
         Self {
             engine_start: Instant::now(),
-            last_report: Instant::now(),
+            cycle: Cycle::default(),
             total_frames: 0,
-
-            cycle_frame_start: Instant::now(),
-            cycle_slowest_render: Duration::from_secs(0),
-            cycle_fastest_render: Duration::from_secs(30),
-            cycle_total_rendered: Duration::from_secs(0),
-            cycle_total_render_count: 0,
-        }
-    }
-}
-impl Metrics {
-    pub(crate) fn start_frame(&mut self) {
-        self.cycle_frame_start = Instant::now();
-    }
-    pub(crate) fn end_frame(&mut self) {
-        let elapsed_time = self.cycle_frame_start.elapsed();
-        self.total_frames += 1;
-        self.cycle_total_render_count += 1;
-        self.cycle_total_rendered += elapsed_time;
-
-        if elapsed_time > self.cycle_slowest_render {
-            self.cycle_slowest_render = elapsed_time;
-        }
-        if elapsed_time < self.cycle_fastest_render {
-            self.cycle_fastest_render = elapsed_time;
-        }
-
-        if self.last_report.elapsed() > CYCLE_REPORT_INTERVAL {
-            log::info!(
-                "Slowest {:?} Fastest {:?} Average {:?} Draw calls {}",
-                self.cycle_slowest_render,
-                self.cycle_fastest_render,
-                self.cycle_total_rendered / self.cycle_total_render_count,
-                self.cycle_total_render_count
-            );
-            self.last_report = Instant::now();
-            self.cycle_slowest_render = Duration::from_secs(0);
-            self.cycle_fastest_render = Duration::from_secs(30);
-            self.cycle_total_rendered = Duration::from_secs(0);
-            self.cycle_total_render_count = 0;
         }
     }
 }
