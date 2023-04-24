@@ -23,7 +23,12 @@ pub(crate) unsafe fn create_descriptor_pool(device: &Device, data: &mut AppData)
     Ok(())
 }
 
-pub(crate) unsafe fn create_descriptor_sets(device: &Device, data: &mut AppData) -> Result<()> {
+pub(crate) unsafe fn create_descriptor_sets(
+    device: &Device,
+    data: &mut AppData,
+    image_view: &vk::ImageView,
+    sampler: &vk::Sampler,
+) -> Result<()> {
     let layouts = vec![data.descriptor_set_layout; data.swapchain_images.len()];
     let info = vk::DescriptorSetAllocateInfo::builder()
         .descriptor_pool(data.descriptor_pool)
@@ -47,8 +52,8 @@ pub(crate) unsafe fn create_descriptor_sets(device: &Device, data: &mut AppData)
 
         let info = vk::DescriptorImageInfo::builder()
             .image_layout(vk::ImageLayout::SHADER_READ_ONLY_OPTIMAL)
-            .image_view(data.texture_image_view)
-            .sampler(data.texture_sampler);
+            .image_view(*image_view)
+            .sampler(*sampler);
 
         let image_info = &[info];
         let sampler_write = vk::WriteDescriptorSet::builder()

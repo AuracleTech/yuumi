@@ -47,12 +47,14 @@ pub(crate) unsafe fn create_color_objects(
     data.color_image = color_image;
     data.color_image_memory = color_image_memory;
 
+    let aspects = vk::ImageAspectFlags::COLOR;
+    let mip_levels = 1;
     data.color_image_view = create_image_view(
         device,
-        data.color_image,
-        data.swapchain_format,
-        vk::ImageAspectFlags::COLOR,
-        1,
+        &data.color_image,
+        &data.swapchain_format,
+        &aspects,
+        &mip_levels,
     )?;
 
     Ok(())

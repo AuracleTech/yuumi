@@ -34,13 +34,11 @@ pub(crate) unsafe fn create_depth_objects(
 
     // Image View
 
-    data.depth_image_view = create_image_view(
-        device,
-        data.depth_image,
-        format,
-        vk::ImageAspectFlags::DEPTH,
-        1,
-    )?;
+    let aspects = vk::ImageAspectFlags::DEPTH;
+    let mip_levels = 1;
+
+    data.depth_image_view =
+        create_image_view(device, &data.depth_image, &format, &aspects, &mip_levels)?;
 
     // Explicitly transitioning the depth image
 

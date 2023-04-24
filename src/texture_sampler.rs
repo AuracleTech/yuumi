@@ -1,10 +1,14 @@
 use anyhow::Result;
 
-use vulkanalia::prelude::v1_0::*;
+use vulkanalia::{prelude::v1_0::*, vk::Sampler};
 
 use crate::app::AppData;
 
-pub(crate) unsafe fn create_texture_sampler(device: &Device, data: &mut AppData) -> Result<()> {
+pub(crate) unsafe fn create_texture_sampler(
+    device: &Device,
+    data: &mut AppData,
+    mip_levels: &u32,
+) -> Result<Sampler> {
     let info = vk::SamplerCreateInfo::builder()
         .mag_filter(vk::Filter::LINEAR)
         .min_filter(vk::Filter::LINEAR)
@@ -19,10 +23,8 @@ pub(crate) unsafe fn create_texture_sampler(device: &Device, data: &mut AppData)
         .compare_op(vk::CompareOp::ALWAYS)
         .mipmap_mode(vk::SamplerMipmapMode::LINEAR)
         .min_lod(0.0) // Optional
-        .max_lod(data.mip_levels as f32)
+        .max_lod(*mip_levels as f32)
         .mip_lod_bias(0.0); // Optional
 
-    data.texture_sampler = device.create_sampler(&info, None)?;
-
-    Ok(())
+    Ok(device.create_sampler(&info, None)?)
 }

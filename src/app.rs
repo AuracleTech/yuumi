@@ -11,13 +11,13 @@ use vulkanalia::vk::{ExtDebugUtilsExtension, KhrSurfaceExtension, KhrSwapchainEx
 use vulkanalia::window::create_surface;
 use vulkanalia::Device;
 
-use crate::assets::{Assets, Mesh};
+use crate::assets::{Assets, Mesh, Texture};
 use crate::command_buffer::{create_command_buffers, create_command_pools};
 use crate::depth_object::create_depth_objects;
 use crate::descriptor_layout::create_descriptor_set_layout;
 use crate::descriptor_pool::{create_descriptor_pool, create_descriptor_sets};
 use crate::framebuffer::create_framebuffers;
-use crate::image_view::{create_swapchain_image_views, create_texture_image_view};
+use crate::image_view::{create_image_view, create_swapchain_image_views};
 use crate::instance::create_instance;
 use crate::logical_device::create_logical_device;
 use crate::metrics::Metrics;
@@ -74,7 +74,10 @@ impl VulkanApp {
                 resized: false,
                 minimized: false,
                 metrics: Metrics::default(),
-                assets: Assets::default(),
+                assets: Assets {
+                    meshes: HashMap::new(),
+                    textures: HashMap::new(),
+                },
             };
             create_swapchain(&window, &app.instance, &app.device, &mut app.data)?;
             create_swapchain_image_views(&app.device, &mut app.data)?;
@@ -87,11 +90,20 @@ impl VulkanApp {
             create_framebuffers(&app.device, &mut app.data)?;
             app.load_model_obj("viking_room")?;
             app.load_texture_png("viking_room")?;
-            create_texture_image_view(&app.device, &mut app.data)?;
-            create_texture_sampler(&app.device, &mut app.data)?;
+            let texture = app
+                .assets
+                .textures
+                .get("viking_room")
+                .expect("Texture not found");
+
             create_uniform_buffers(&app.instance, &app.device, &mut app.data)?;
             create_descriptor_pool(&app.device, &mut app.data)?;
-            create_descriptor_sets(&app.device, &mut app.data)?;
+            create_descriptor_sets(
+                &app.device,
+                &mut app.data,
+                &texture.image_view,
+                &texture.sampler,
+            )?;
             create_command_buffers(&app.device, &mut app.data)?;
             create_sync_objects(&app.device, &mut app.data)?;
 
@@ -409,7 +421,7 @@ impl VulkanApp {
         Ok(())
     }
 
-    pub(crate) fn load_texture_png(&mut self, name: &str) -> Result<()> {
+    pub(crate) unsafe fn load_texture_png(&mut self, name: &str) -> Result<()> {
         let path = format!("assets/models/{}.png", name);
         let image = std::fs::File::open(path)?;
 
@@ -422,17 +434,37 @@ impl VulkanApp {
         let size = reader.info().raw_bytes() as u64;
         let (width, height) = reader.info().size();
 
-        unsafe {
-            create_texture_image(
-                &mut self.instance,
-                &mut self.device,
-                &mut self.data,
-                &pixels,
-                size,
+        let (image, image_memory, mip_levels) = create_texture_image(
+            &mut self.instance,
+            &mut self.device,
+            &mut self.data,
+            &pixels,
+            size,
+            width,
+            height,
+        )?;
+
+        // OPTIMIZE reuse image view and sampler for the most textures possible
+        let format = vk::Format::R8G8B8A8_SRGB;
+        let aspects = vk::ImageAspectFlags::COLOR;
+        let image_view = create_image_view(&self.device, &image, &format, &aspects, &mip_levels)?;
+        let sampler = create_texture_sampler(&self.device, &mut self.data, &mip_levels)?;
+
+        self.assets.textures.insert(
+            name.to_string(),
+            Texture {
+                image,
+                image_view,
+                image_memory,
+                mip_levels,
                 width,
                 height,
-            )
-        }
+                format: vk::Format::R8G8B8A8_SRGB,
+                sampler,
+            },
+        );
+
+        Ok(())
     }
 
     pub(crate) fn load_model_obj(&mut self, name: &str) -> Result<()> {
@@ -518,6 +550,7 @@ impl VulkanApp {
         Ok(())
     }
 
+    // OPTIMIZE do not recreate swapchain if only the windows size changed
     pub(crate) unsafe fn recreate_swapchain(&mut self, window: &Window) -> Result<()> {
         self.device.device_wait_idle()?;
         self.destroy_swapchain();
@@ -530,13 +563,66 @@ impl VulkanApp {
         create_framebuffers(&self.device, &mut self.data)?;
         create_uniform_buffers(&self.instance, &self.device, &mut self.data)?;
         create_descriptor_pool(&self.device, &mut self.data)?;
-        create_descriptor_sets(&self.device, &mut self.data)?;
+
+        let texture = self
+            .assets
+            .textures
+            .get("viking_room")
+            .expect("Texture not found");
+
+        create_descriptor_sets(
+            &self.device,
+            &mut self.data,
+            &texture.image_view,
+            &texture.sampler,
+        )?;
         create_command_buffers(&self.device, &mut self.data)?;
         self.data
             .images_in_flight
             .resize(self.data.swapchain_images.len(), vk::Fence::null());
         Ok(())
     }
+
+    // TODO
+    // pub(crate) unsafe fn resize_swapchain(&mut self, window: &Window) -> Result<()> {
+    //     // Wait for the device to become idle
+    //     self.device.device_wait_idle()?;
+
+    //     // Get the new size of the window
+    //     let size = window.inner_size();
+
+    //     // Get the new swapchain extent
+    //     let extent = vk::Extent2D::builder()
+    //         .width(size.width)
+    //         .height(size.height)
+    //         .build();
+
+    //     // Update the swapchain extent
+    //     self.data.swapchain_extent = extent;
+
+    //     // Get the new swapchain images
+    //     let new_images = {
+    //         let swapchain_loader =
+    //             ash::extensions::khr::Swapchain::new(&self.instance, &self.device);
+    //         swapchain_loader.get_swapchain_images_khr(self.data.swapchain)?
+    //     };
+
+    //     // Destroy any dependent objects that were created based on the old swapchain images
+    //     destroy_framebuffers(&self.device, &mut self.data);
+
+    //     // Recreate framebuffers with new swapchain images
+    //     create_framebuffers(&self.device, &mut self.data)?;
+
+    //     // Resize the images_in_flight vector to match the new number of swapchain images
+    //     self.data
+    //         .images_in_flight
+    //         .resize(new_images.len(), vk::Fence::null());
+
+    //     // Present the updated images to the screen
+    //     self.present_image();
+
+    //     Ok(())
+    // }
 
     unsafe fn destroy_swapchain(&mut self) {
         self.device
@@ -581,12 +667,17 @@ impl Drop for VulkanApp {
                 .command_pools
                 .iter()
                 .for_each(|p| self.device.destroy_command_pool(*p, None));
-            self.device.destroy_sampler(self.data.texture_sampler, None);
-            self.device
-                .destroy_image_view(self.data.texture_image_view, None);
-            self.device.destroy_image(self.data.texture_image, None);
-            self.device
-                .free_memory(self.data.texture_image_memory, None);
+
+            self.assets.textures.iter().for_each(|(_, texture)| {
+                self.device.destroy_image(texture.image, None);
+                self.device.free_memory(texture.image_memory, None);
+
+                // FIX destroy samplers: self.device.destroy_sampler(texture.sampler, None);
+                self.device.destroy_sampler(texture.sampler, None);
+                // FIX destroy image views: self.device.destroy_image_view(texture.image_view, None);
+                self.device.destroy_image_view(texture.image_view, None);
+            });
+
             self.device
                 .destroy_descriptor_set_layout(self.data.descriptor_set_layout, None);
 
@@ -656,11 +747,6 @@ pub(crate) struct AppData {
     pub(crate) uniform_buffers_memory: Vec<vk::DeviceMemory>,
     pub(crate) descriptor_pool: vk::DescriptorPool,
     pub(crate) descriptor_sets: Vec<vk::DescriptorSet>,
-    pub(crate) mip_levels: u32,
-    pub(crate) texture_image: vk::Image,
-    pub(crate) texture_image_memory: vk::DeviceMemory,
-    pub(crate) texture_image_view: vk::ImageView,
-    pub(crate) texture_sampler: vk::Sampler,
     pub(crate) depth_image: vk::Image,
     pub(crate) depth_image_memory: vk::DeviceMemory,
     pub(crate) depth_image_view: vk::ImageView,

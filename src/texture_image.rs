@@ -1,6 +1,9 @@
 use anyhow::{anyhow, Result};
 
-use vulkanalia::prelude::v1_0::*;
+use vulkanalia::{
+    prelude::v1_0::*,
+    vk::{DeviceMemory, Image},
+};
 
 use crate::{
     app::AppData,
@@ -10,6 +13,7 @@ use crate::{
     vertex_buffer::get_memory_type_index,
 };
 
+pub(crate) type MipLevels = u32;
 pub(crate) unsafe fn create_texture_image(
     instance: &Instance,
     device: &Device,
@@ -18,8 +22,8 @@ pub(crate) unsafe fn create_texture_image(
     size: u64,
     width: u32,
     height: u32,
-) -> Result<()> {
-    data.mip_levels = (width.max(height) as f32).log2().floor() as u32 + 1;
+) -> Result<(Image, DeviceMemory, MipLevels)> {
+    let mip_levels = (width.max(height) as f32).log2().floor() as u32 + 1;
 
     let (staging_buffer, staging_buffer_memory) = create_buffer(
         instance,
@@ -36,13 +40,13 @@ pub(crate) unsafe fn create_texture_image(
 
     device.unmap_memory(staging_buffer_memory);
 
-    let (texture_image, texture_image_memory) = create_image(
+    let (image, image_memory) = create_image(
         instance,
         device,
         data,
         width,
         height,
-        data.mip_levels,
+        mip_levels,
         vk::SampleCountFlags::_1,
         vk::Format::R8G8B8A8_SRGB,
         vk::ImageTiling::OPTIMAL,
@@ -52,43 +56,33 @@ pub(crate) unsafe fn create_texture_image(
         vk::MemoryPropertyFlags::DEVICE_LOCAL,
     )?;
 
-    data.texture_image = texture_image;
-    data.texture_image_memory = texture_image_memory;
-
     transition_image_layout(
         device,
         data,
-        data.texture_image,
+        image,
         vk::Format::R8G8B8A8_SRGB,
         vk::ImageLayout::UNDEFINED,
         vk::ImageLayout::TRANSFER_DST_OPTIMAL,
-        data.mip_levels,
+        mip_levels,
     )?;
 
-    copy_buffer_to_image(
-        device,
-        data,
-        staging_buffer,
-        data.texture_image,
-        width,
-        height,
-    )?;
+    copy_buffer_to_image(device, data, staging_buffer, image, width, height)?;
 
     generate_mipmaps(
         instance,
         device,
         data,
-        data.texture_image,
+        image,
         vk::Format::R8G8B8A8_SRGB,
         width,
         height,
-        data.mip_levels,
+        mip_levels,
     )?;
 
     device.destroy_buffer(staging_buffer, None);
     device.free_memory(staging_buffer_memory, None);
 
-    Ok(())
+    Ok((image, image_memory, mip_levels))
 }
 
 pub(crate) unsafe fn create_image(
