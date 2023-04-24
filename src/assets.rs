@@ -14,11 +14,11 @@ pub(crate) struct Texture {
     pub image: vk::Image,
     pub image_view: vk::ImageView,
     pub image_memory: vk::DeviceMemory,
-    pub width: u32,
-    pub height: u32,
-    pub mip_levels: u32,
+    pub _width: u32,
+    pub _height: u32,
+    pub _mip_levels: u32,
     // OPTIMIZE use a reference to the image view to reuse the same image view for multiple textures
-    pub format: vk::Format,
+    pub _format: vk::Format,
     // OPTIMIZE use a reference to the texture sampler to reuse the same sampler for multiple textures
     pub sampler: vk::Sampler,
 }
