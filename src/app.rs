@@ -583,47 +583,6 @@ impl VulkanApp {
         Ok(())
     }
 
-    // TODO
-    // pub(crate) unsafe fn resize_swapchain(&mut self, window: &Window) -> Result<()> {
-    //     // Wait for the device to become idle
-    //     self.device.device_wait_idle()?;
-
-    //     // Get the new size of the window
-    //     let size = window.inner_size();
-
-    //     // Get the new swapchain extent
-    //     let extent = vk::Extent2D::builder()
-    //         .width(size.width)
-    //         .height(size.height)
-    //         .build();
-
-    //     // Update the swapchain extent
-    //     self.data.swapchain_extent = extent;
-
-    //     // Get the new swapchain images
-    //     let new_images = {
-    //         let swapchain_loader =
-    //             ash::extensions::khr::Swapchain::new(&self.instance, &self.device);
-    //         swapchain_loader.get_swapchain_images_khr(self.data.swapchain)?
-    //     };
-
-    //     // Destroy any dependent objects that were created based on the old swapchain images
-    //     destroy_framebuffers(&self.device, &mut self.data);
-
-    //     // Recreate framebuffers with new swapchain images
-    //     create_framebuffers(&self.device, &mut self.data)?;
-
-    //     // Resize the images_in_flight vector to match the new number of swapchain images
-    //     self.data
-    //         .images_in_flight
-    //         .resize(new_images.len(), vk::Fence::null());
-
-    //     // Present the updated images to the screen
-    //     self.present_image();
-
-    //     Ok(())
-    // }
-
     unsafe fn destroy_swapchain(&mut self) {
         self.device
             .destroy_image_view(self.data.color_image_view, None);
