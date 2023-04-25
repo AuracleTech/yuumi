@@ -23,15 +23,15 @@ impl Default for Cycle {
     }
 }
 impl Cycle {
-    pub fn start(&mut self) {
+    pub(crate) fn start(&mut self) {
         self.start = Instant::now();
     }
 
-    pub fn start_frame(&mut self) {
+    pub(crate) fn start_frame(&mut self) {
         self.frame_start = Instant::now();
     }
 
-    pub fn end_frame(&mut self) {
+    pub(crate) fn end_frame(&mut self) {
         self.total_frames += 1;
         let elapsed_time = self.frame_start.elapsed();
         self.total_render += elapsed_time;
