@@ -74,14 +74,17 @@ impl Default for Metrics {
     }
 }
 
-pub(crate) fn print_memory_usage() {
+pub(crate) fn _print_memory_usage() {
     if let Some(usage) = memory_stats() {
-        log::info!("Virtual memory usage: {}", format_size(usage.virtual_mem));
-        log::info!("Physical memory usage: {}", format_size(usage.physical_mem));
+        log::info!("Virtual memory usage: {}", _format_size(usage.virtual_mem));
+        log::info!(
+            "Physical memory usage: {}",
+            _format_size(usage.physical_mem)
+        );
     }
 }
 
-fn format_size(mut size: usize) -> String {
+fn _format_size(mut size: usize) -> String {
     let units = ["B", "KB", "MB", "GB", "TB", "PB"];
     let mut index = 0;
 
