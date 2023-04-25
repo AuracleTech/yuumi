@@ -2,6 +2,7 @@ use std::collections::HashMap;
 
 use anyhow::{anyhow, Result};
 
+use base64::Engine;
 use cgmath::EuclideanSpace;
 use winit::window::Window;
 
@@ -88,7 +89,9 @@ impl VulkanApp {
             create_color_objects(&app.instance, &app.device, &mut app.data)?;
             create_depth_objects(&app.instance, &app.device, &mut app.data)?;
             create_framebuffers(&app.device, &mut app.data)?;
-            app.load_model_obj("viking_room")?;
+
+            app.load_model("cube")?;
+            app.load_model("viking_room")?;
             app.load_texture_png("viking_room")?;
             let texture = app
                 .assets
@@ -291,12 +294,43 @@ impl VulkanApp {
 
         let secondary_command_buffer = secondary_command_buffers[secondary_command_buffer_index];
 
-        // Get model
-        let viking_room_mesh = self
+        // Iterate through the meshes
+        // self.assets.meshes.iter().for_each(|(name, mesh)| {
+        //     // Bind the descriptor set
+        //     self.device.cmd_bind_descriptor_sets(
+        //         secondary_command_buffer,
+        //         vk::PipelineBindPoint::GRAPHICS,
+        //         self.data.pipeline_layout,
+        //         0,
+        //         &[self.data.descriptor_sets[image_index]],
+        //         &[],
+        //     );
+
+        //     // Bind the vertex buffer
+        //     self.device.cmd_bind_vertex_buffers(
+        //         secondary_command_buffer,
+        //         0,
+        //         &[mesh.vertex_buffer],
+        //         &[0],
+        //     );
+
+        //     // Bind the index buffer
+        //     self.device.cmd_bind_index_buffer(
+        //         secondary_command_buffer,
+        //         mesh.index_buffer,
+        //         0,
+        //         vk::IndexType::UINT32,
+        //     );
+
+        //     // Draw the mesh
+        //     self.device
+        //         .cmd_draw_indexed(secondary_command_buffer, mesh.index_count, 1, 0, 0, 0);
+        // });
+        let viking_room_mesh: &&Mesh = &self
             .assets
             .meshes
             .get("viking_room")
-            .expect("Model not found");
+            .expect("viking_room mesh not found");
 
         // Commands
 
@@ -467,7 +501,27 @@ impl VulkanApp {
         Ok(())
     }
 
-    pub(crate) fn load_model_obj(&mut self, name: &str) -> Result<()> {
+    pub(crate) fn load_model(&mut self, name: &str) -> Result<()> {
+        let supported_extensions = vec!["gltf", "glb", "obj"];
+
+        for extension in supported_extensions {
+            let path = format!("assets/models/{}.{}", name, extension);
+            if std::path::Path::new(&path).exists() {
+                match extension {
+                    "gltf" => self.from_gltf(name, extension)?,
+                    "glb" => self.from_gltf(name, extension)?,
+                    "obj" => self.from_obj(name)?,
+                    _ => {}
+                }
+
+                return Ok(());
+            }
+        }
+
+        Err(anyhow!("Model not found"))
+    }
+
+    pub(crate) fn from_obj(&mut self, name: &str) -> Result<()> {
         let path = format!("assets/models/{}.obj", name);
         let mut reader = std::io::BufReader::new(std::fs::File::open(path)?);
 
@@ -513,6 +567,25 @@ impl VulkanApp {
             }
         }
 
+        let instances = vec![
+            cgmath::Point3::new(0.0, -1.25, 1.0),
+            cgmath::Point3::new(0.0, 1.25, 1.0),
+            cgmath::Point3::new(0.0, -1.25, -1.0),
+            cgmath::Point3::new(0.0, 1.25, -1.0),
+        ];
+
+        self.register_model(name, &vertices, &indices, instances)?;
+
+        Ok(())
+    }
+
+    fn register_model(
+        &mut self,
+        name: &str,
+        vertices: &Vec<Vertex>,
+        indices: &Vec<u32>,
+        instances_positions: Vec<cgmath::Point3<f32>>,
+    ) -> Result<()> {
         unsafe {
             let (vertex_buffer, vertex_buffer_memory) = create_vertex_buffer(
                 &vertices,
@@ -527,25 +600,205 @@ impl VulkanApp {
                 &mut self.data,
             )?;
 
-            let instances = vec![
-                cgmath::Point3::new(0.0, -1.25, 1.0),
-                cgmath::Point3::new(0.0, 1.25, 1.0),
-                cgmath::Point3::new(0.0, -1.25, -1.0),
-                cgmath::Point3::new(0.0, 1.25, -1.0),
-            ];
-
             let mesh = Mesh {
                 vertex_buffer,
                 vertex_buffer_memory,
                 index_buffer,
                 index_buffer_memory,
-                // TODO FLEXIBLE INSTANCES
-                instances_positions: instances,
+                instances_positions,
                 index_count: indices.len() as u32,
             };
 
             self.assets.meshes.insert(name.to_string(), mesh);
         }
+
+        Ok(())
+    }
+
+    pub(crate) fn from_gltf(&mut self, name: &str, extension: &str) -> Result<()> {
+        let path_string = format!("assets/models/{}.{}", name, extension);
+        let path = std::path::Path::new(&path_string);
+        let (gltf, buffers, _) = gltf::import(&path).expect("Failed to import gltf file");
+
+        let mut buffer_data = Vec::new();
+        for buffer in gltf.buffers() {
+            match buffer.source() {
+                gltf::buffer::Source::Bin => {
+                    buffer_data.push(buffers[buffer.index()].clone());
+                }
+                gltf::buffer::Source::Uri(uri) => {
+                    if extension != "glb" {
+                        let uri = uri.trim_start_matches("data:application/octet-stream;base64,");
+                        let data = uri.as_bytes();
+                        let bin = base64::engine::general_purpose::STANDARD
+                            .decode(data)
+                            .expect("Failed to decode buffer data");
+                        buffer_data.push(gltf::buffer::Data(bin));
+                    } else {
+                        let bin = std::fs::read(uri).expect("Failed to read buffer data");
+                        buffer_data.push(gltf::buffer::Data(bin));
+                    }
+                }
+            }
+        }
+
+        // let mut materials = Vec::new();
+        // let mut material_meshes_pairs = HashMap::new();
+        // for gltf_material in gltf.materials() {
+        //     let pbr = gltf_material.pbr_metallic_roughness();
+        //     if let Some(gltf_texture) = &pbr.base_color_texture().map(|tex| tex.texture()) {
+        //         // println!(
+        //         //     "Loading PBR for model {} with texture {}",
+        //         //     path.display(),
+        //         //     gltf_texture.index()
+        //         // );
+
+        //         let wrap_s = match gltf_texture.sampler().wrap_s() {
+        //             WrappingMode::ClampToEdge => gl::CLAMP_TO_EDGE,
+        //             WrappingMode::MirroredRepeat => gl::MIRRORED_REPEAT,
+        //             WrappingMode::Repeat => gl::REPEAT,
+        //         };
+        //         let wrap_t = match gltf_texture.sampler().wrap_t() {
+        //             WrappingMode::ClampToEdge => gl::CLAMP_TO_EDGE,
+        //             WrappingMode::MirroredRepeat => gl::MIRRORED_REPEAT,
+        //             WrappingMode::Repeat => gl::REPEAT,
+        //         };
+        //         if let Some(filter_min) = gltf_texture.sampler().min_filter() {
+        //             match filter_min {
+        //                 MinFilter::Nearest => gl::NEAREST,
+        //                 MinFilter::Linear => gl::LINEAR,
+        //                 MinFilter::NearestMipmapNearest => gl::NEAREST_MIPMAP_NEAREST,
+        //                 MinFilter::LinearMipmapNearest => gl::LINEAR_MIPMAP_NEAREST,
+        //                 MinFilter::NearestMipmapLinear => gl::NEAREST_MIPMAP_LINEAR,
+        //                 MinFilter::LinearMipmapLinear => gl::LINEAR_MIPMAP_LINEAR,
+        //             };
+        //         }
+        //         if let Some(filter_mag) = gltf_texture.sampler().mag_filter() {
+        //             match filter_mag {
+        //                 MagFilter::Nearest => gl::NEAREST,
+        //                 MagFilter::Linear => gl::LINEAR,
+        //             };
+        //         }
+
+        //         let texture_source = gltf_texture.source().source();
+
+        //         let albedo_image = match texture_source {
+        //             Source::Uri { uri, .. } => Image::from_uri(uri),
+        //             Source::View { view, .. } => {
+        //                 let data = &buffer_data[view.buffer().index()][view.offset()..];
+        //                 Image::from_data(data)
+        //             }
+        //         };
+        //         let mut albedo = Texture::new(albedo_image);
+        //         albedo.gl_s_wrapping = wrap_s;
+        //         albedo.gl_t_wrapping = wrap_t;
+        //         // TODO add min and mag filter
+        //         // TODO mipmaps? and all the other texture options
+
+        //         materials.push(Material::Pbr { albedo });
+
+        //         // TEMPORARY - ASSIGN EVERY MESH TO THE FIRST MATERIAL
+        //         material_meshes_pairs.insert(0, vec![0]);
+        //     }
+
+        // if let Some(normal_texture) = gltf_material.normal_texture() {
+        //     println!(
+        //         "Loading normal texture for model {} with texture {}",
+        //         path.display(),
+        //         normal_texture.texture().index()
+        //     );
+
+        //     let wrap_s = match normal_texture.texture().sampler().wrap_s() {
+        //         WrappingMode::ClampToEdge => gl::CLAMP_TO_EDGE,
+        //         WrappingMode::MirroredRepeat => gl::MIRRORED_REPEAT,
+        //         WrappingMode::Repeat => gl::REPEAT,
+        //     };
+
+        //     let wrap_t = match normal_texture.texture().sampler().wrap_t() {
+        //         WrappingMode::ClampToEdge => gl::CLAMP_TO_EDGE,
+        //         WrappingMode::MirroredRepeat => gl::MIRRORED_REPEAT,
+        //         WrappingMode::Repeat => gl::REPEAT,
+        //     };
+
+        //     if let Some(filter_min) = normal_texture.texture().sampler().min_filter() {
+        //         match filter_min {
+        //             MinFilter::Nearest => gl::NEAREST,
+        //             MinFilter::Linear => gl::LINEAR,
+        //             MinFilter::NearestMipmapNearest => gl::NEAREST_MIPMAP_NEAREST,
+        //             MinFilter::LinearMipmapNearest => gl::LINEAR_MIPMAP_NEAREST,
+        //             MinFilter::NearestMipmapLinear => gl::NEAREST_MIPMAP_LINEAR,
+        //             MinFilter::LinearMipmapLinear => gl::LINEAR_MIPMAP_LINEAR,
+        //         };
+        //     }
+
+        //     if let Some(filter_mag) = normal_texture.texture().sampler().mag_filter() {
+        //         match filter_mag {
+        //             MagFilter::Nearest => gl::NEAREST,
+        //             MagFilter::Linear => gl::LINEAR,
+        //         };
+        //     }
+
+        //     let texture_source = normal_texture.texture().source().source();
+
+        //     let normal_image = match texture_source {
+        //         Source::Uri { uri, .. } => Image::from_uri(uri),
+        //         Source::View { view, .. } => {
+        //             let data = &buffer_data[view.buffer().index()][view.offset()..];
+        //             Image::from_data(data)
+        //         }
+        //     };
+
+        //     let mut normal = Texture::new(normal_image);
+        //     normal.gl_s_wrapping = wrap_s;
+        //     normal.gl_t_wrapping = wrap_t;
+        //     // TODO add min and mag filter
+        //     // TODO mipmaps? and all the other texture options
+
+        //     materials.push(Material::Normal { normal });
+        // }
+        // }
+        // FIX optimize ourselves by reusing vertices
+        let mut vertices = Vec::new();
+        let mut indices = Vec::new();
+
+        for mesh in gltf.meshes() {
+            for primitive in mesh.primitives() {
+                let reader = primitive.reader(|buffer| Some(&buffers[buffer.index()]));
+
+                // TODO Vertex color - Needs a new type called VertexGroup or something check on blender
+                if let Some(position_attribute) = reader.read_positions() {
+                    position_attribute.for_each(|position| {
+                        vertices.push(Vertex {
+                            pos: position.into(),
+                            color: cgmath::vec3(0.0, 0.0, 0.0),
+                            tex_coord: cgmath::vec2(0.0, 0.0),
+                        })
+                    });
+                }
+                // if let Some(normal_attribute) = reader.read_normals() {
+                //     let mut normal_index = 0;
+                //     normal_attribute.for_each(|normal| {
+                //         vertices[normal_index].normal = normal.into();
+                //         normal_index += 1;
+                //     });
+                // }
+                if let Some(tex_coord_attribute) = reader.read_tex_coords(0).map(|v| v.into_f32()) {
+                    let mut tex_coord_index = 0;
+                    tex_coord_attribute.for_each(|tex_coord| {
+                        vertices[tex_coord_index].tex_coord = tex_coord.into();
+                        tex_coord_index += 1;
+                    });
+                }
+
+                if let Some(indices_raw) = reader.read_indices() {
+                    indices.append(&mut indices_raw.into_u32().collect::<Vec<u32>>());
+                }
+            }
+        }
+
+        let instances = vec![cgmath::Point3::new(0.0, 0.0, 0.0)];
+
+        self.register_model(name, &vertices, &indices, instances)?;
 
         Ok(())
     }

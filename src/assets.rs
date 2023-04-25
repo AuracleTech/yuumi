@@ -29,6 +29,7 @@ pub(crate) struct Mesh {
     pub(crate) vertex_buffer_memory: vk::DeviceMemory,
     pub(crate) index_buffer: vk::Buffer,
     pub(crate) index_buffer_memory: vk::DeviceMemory,
-    pub(crate) instances_positions: Vec<Point3<f32>>,
     pub(crate) index_count: u32,
+    // TODO make instances pos, rot, scale a separate struct
+    pub(crate) instances_positions: Vec<Point3<f32>>,
 }
