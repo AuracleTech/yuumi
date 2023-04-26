@@ -26,9 +26,8 @@ mod uniform_buffer;
 mod vertex;
 mod vertex_buffer;
 
-use app::VulkanApp;
-
 use anyhow::Result;
+use app::App;
 use vulkanalia::vk::DeviceV1_0;
 use winit::{
     dpi::LogicalSize,
@@ -50,7 +49,7 @@ pub fn run(window_title: &str) -> Result<()> {
 
     // App
 
-    let mut app = VulkanApp::new(&window)?;
+    let mut app = App::new(&window)?;
 
     event_loop.run(move |event, _, control_flow| {
         *control_flow = ControlFlow::Poll;
