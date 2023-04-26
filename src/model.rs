@@ -41,9 +41,9 @@ pub(crate) fn load_model(
         let (vertices, indices) = match extension.as_ref() {
             "gltf" => load_suboptimal_gltf(&path, &extension)?,
             "glb" => load_suboptimal_gltf(&path, &extension)?,
-            _ => Err(anyhow!("unsupported extension"))?,
+            _ => Err(anyhow!("unsupported file extension: {}", extension))?,
         };
-        optimize_model(&name, &vertices, &indices)?;
+        save_optimal(&name, &vertices, &indices)?;
     }
 
     let path = format!("assets/models/{}.bin", name);
@@ -72,11 +72,13 @@ pub(crate) fn load_model(
     })
 }
 
-pub(crate) fn optimize_model(
-    name: &str,
-    old_vertices: &[Vertex],
-    old_indices: &Vec<u32>,
-) -> Result<()> {
+fn load_optimal(path: &str) -> Result<(Vec<Vertex>, Vec<u32>)> {
+    let mut reader = std::io::BufReader::new(std::fs::File::open(path)?);
+    let serialized: SerializedMesh = bincode::deserialize_from(&mut reader)?;
+    Ok((serialized.vertices, serialized.indices))
+}
+
+fn save_optimal(name: &str, old_vertices: &[Vertex], old_indices: &Vec<u32>) -> Result<()> {
     let path = format!("assets/models/{}.bin", name);
     let mut writer = std::io::BufWriter::new(std::fs::File::create(path)?);
 
@@ -100,13 +102,7 @@ pub(crate) fn optimize_model(
     Ok(())
 }
 
-pub(crate) fn load_optimal(path: &str) -> Result<(Vec<Vertex>, Vec<u32>)> {
-    let mut reader = std::io::BufReader::new(std::fs::File::open(path)?);
-    let serialized_mesh: SerializedMesh = bincode::deserialize_from(&mut reader)?;
-    Ok((serialized_mesh.vertices, serialized_mesh.indices))
-}
-
-pub(crate) fn load_suboptimal_gltf(path: &str, extension: &str) -> Result<(Vec<Vertex>, Vec<u32>)> {
+fn load_suboptimal_gltf(path: &str, extension: &str) -> Result<(Vec<Vertex>, Vec<u32>)> {
     let (gltf, buffers, _) = gltf::import(&path).expect("Failed to import gltf file");
 
     let mut buffer_data = Vec::new();

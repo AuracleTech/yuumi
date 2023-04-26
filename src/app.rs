@@ -1,14 +1,3 @@
-use anyhow::{anyhow, Result};
-
-use cgmath::EuclideanSpace;
-use winit::window::Window;
-
-use vulkanalia::loader::{LibloadingLoader, LIBRARY};
-use vulkanalia::prelude::v1_0::*;
-use vulkanalia::vk::{ExtDebugUtilsExtension, KhrSurfaceExtension, KhrSwapchainExtension};
-use vulkanalia::window::create_surface;
-use vulkanalia::Device;
-
 use crate::assets::Assets;
 use crate::command_buffer::{create_command_buffers, create_command_pools};
 use crate::depth_object::create_depth_objects;
@@ -26,11 +15,17 @@ use crate::render_pass::create_render_pass;
 use crate::swapchain::create_swapchain;
 use crate::sync_object::create_sync_objects;
 use crate::uniform_buffer::{create_uniform_buffers, UniformBufferObject};
+use anyhow::{anyhow, Result};
+use cgmath::EuclideanSpace;
+use vulkanalia::loader::{LibloadingLoader, LIBRARY};
+use vulkanalia::prelude::v1_0::*;
+use vulkanalia::vk::{ExtDebugUtilsExtension, KhrSurfaceExtension, KhrSwapchainExtension};
+use vulkanalia::window::create_surface;
+use vulkanalia::Device;
+use winit::window::Window;
 
 pub(crate) const MAX_FRAMES_IN_FLIGHT: usize = 2;
-
 pub(crate) const VALIDATION_ENABLED: bool = cfg!(debug_assertions);
-
 pub(crate) const VALIDATION_LAYER: vk::ExtensionName =
     vk::ExtensionName::from_bytes(b"VK_LAYER_KHRONOS_validation");
 

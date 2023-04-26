@@ -6,8 +6,23 @@ use vulkanalia::{Device, Instance};
 
 use crate::app::AppData;
 use crate::image_view::create_image_view;
+use crate::serializer::SerializedTexture;
+use crate::texture_image::create_texture_image;
 use crate::texture_sampler::create_texture_sampler;
-use crate::{assets::Texture, texture_image::create_texture_image};
+
+#[derive(Debug)]
+pub(crate) struct Texture {
+    pub(crate) image: vk::Image,
+    pub(crate) image_view: vk::ImageView,
+    pub(crate) image_memory: vk::DeviceMemory,
+    pub(crate) _width: u32,
+    pub(crate) _height: u32,
+    pub(crate) _mip_levels: u32,
+    // OPTIMIZE use a reference to the image view to reuse the same image view for multiple textures
+    pub(crate) _format: vk::Format,
+    // OPTIMIZE use a reference to the texture sampler to reuse the same sampler for multiple textures
+    pub(crate) sampler: vk::Sampler,
+}
 
 pub(crate) fn load_texture(
     name: &str,
@@ -15,7 +30,7 @@ pub(crate) fn load_texture(
     device: &mut Device,
     data: &mut AppData,
 ) -> Result<Texture> {
-    let supported_extensions = vec!["png"];
+    let supported_extensions = vec!["bin", "png"];
 
     let extension = supported_extensions
         .iter()
@@ -27,40 +42,20 @@ pub(crate) fn load_texture(
                 None
             }
         })
-        .ok_or(anyhow!("no supported model found"))?;
+        .ok_or(anyhow!("no supported texture found"))?;
 
-    // TODO optimize if not bin
-    // if *extension != "bin" {
-    //     let path = format!("assets/models/{}.{}", name, extension);
-    //     let (vertices, indices) = match extension.as_ref() {
-    //         "gltf" => load_suboptimal_gltf(&path, &extension)?,
-    //         "glb" => load_suboptimal_gltf(&path, &extension)?,
-    //         _ => Err(anyhow!("unsupported extension"))?,
-    //     };
-    //     optimize_model(&name, &vertices, &indices)?;
-    // }
+    if *extension != "bin" {
+        let path = format!("assets/textures/{}.{}", name, extension);
+        let (pixels, width, height) = match extension.as_ref() {
+            "png" => load_suboptimal_png(&path)?,
+            _ => Err(anyhow!("unsupported file extension: {}", extension))?,
+        };
+        save_optimal(&name, pixels, width, height)?;
+    }
 
-    // TEMP load png
-    Ok(load_texture_png(name, instance, device, data)?)
-}
-
-fn load_texture_png(
-    name: &str,
-    instance: &mut Instance,
-    device: &mut Device,
-    data: &mut AppData,
-) -> Result<Texture> {
-    let path = format!("assets/textures/{}.png", name);
-    let image = std::fs::File::open(path)?;
-
-    let decoder = png::Decoder::new(image);
-    let mut reader = decoder.read_info()?;
-
-    let mut pixels = vec![0; reader.info().raw_bytes()];
-    reader.next_frame(&mut pixels)?;
-
-    let size = reader.info().raw_bytes() as u64;
-    let (width, height) = reader.info().size();
+    let path = format!("assets/textures/{}.bin", name);
+    let (pixels, width, height) = load_optimal(&path)?;
+    let size = pixels.len() as u64;
 
     let (image, image_memory, mip_levels) =
         unsafe { create_texture_image(instance, device, data, &pixels, size, width, height)? };
@@ -81,4 +76,38 @@ fn load_texture_png(
         _format: vk::Format::R8G8B8A8_SRGB,
         sampler,
     })
+}
+
+fn load_suboptimal_png(path: &str) -> Result<(Vec<u8>, u32, u32)> {
+    let image = std::fs::File::open(path)?;
+
+    let decoder = png::Decoder::new(image);
+    let mut reader = decoder.read_info()?;
+
+    let mut pixels = vec![0; reader.info().raw_bytes()];
+    reader.next_frame(&mut pixels)?;
+
+    let (width, height) = reader.info().size();
+
+    Ok((pixels, width, height))
+}
+
+fn load_optimal(path: &str) -> Result<(Vec<u8>, u32, u32)> {
+    let mut reader = std::io::BufReader::new(std::fs::File::open(path)?);
+    let serialized: SerializedTexture = bincode::deserialize_from(&mut reader)?;
+    Ok((serialized.pixels, serialized.width, serialized.height))
+}
+
+fn save_optimal(name: &str, pixels: Vec<u8>, width: u32, height: u32) -> Result<()> {
+    let path = format!("assets/textures/{}.bin", name);
+    let mut writer = std::io::BufWriter::new(std::fs::File::create(path)?);
+    bincode::serialize_into(
+        &mut writer,
+        &SerializedTexture {
+            width,
+            height,
+            pixels,
+        },
+    )?;
+    Ok(())
 }

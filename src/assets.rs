@@ -1,11 +1,12 @@
-use std::collections::HashMap;
-
-use vulkanalia::prelude::v1_0::*;
-
+use crate::{
+    app::AppData,
+    model,
+    texture::{self, Texture},
+};
 use anyhow::{anyhow, Result};
 use cgmath::Point3;
-
-use crate::{app::AppData, model, texture};
+use std::collections::HashMap;
+use vulkanalia::prelude::v1_0::*;
 
 #[derive(Debug)]
 pub(crate) struct Assets {
@@ -58,20 +59,6 @@ impl Assets {
         );
         Ok(())
     }
-}
-
-#[derive(Debug)]
-pub(crate) struct Texture {
-    pub image: vk::Image,
-    pub image_view: vk::ImageView,
-    pub image_memory: vk::DeviceMemory,
-    pub _width: u32,
-    pub _height: u32,
-    pub _mip_levels: u32,
-    // OPTIMIZE use a reference to the image view to reuse the same image view for multiple textures
-    pub _format: vk::Format,
-    // OPTIMIZE use a reference to the texture sampler to reuse the same sampler for multiple textures
-    pub sampler: vk::Sampler,
 }
 
 #[derive(Debug)]
