@@ -1,10 +1,12 @@
 use std::hash::Hash;
 use std::hash::Hasher;
 
+use serde::Deserialize;
+use serde::Serialize;
 use vulkanalia::prelude::v1_0::*;
 
 #[repr(C)]
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, Serialize, Deserialize)]
 pub(crate) struct Vertex {
     pub(crate) pos: cgmath::Vector3<f32>,
     pub(crate) color: cgmath::Vector3<f32>,

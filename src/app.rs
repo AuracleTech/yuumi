@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::path::Path;
 
 use anyhow::{anyhow, Result};
 
@@ -26,6 +27,7 @@ use crate::msaa::create_color_objects;
 use crate::physical_device::pick_physical_device;
 use crate::pipeline::create_pipeline;
 use crate::render_pass::create_render_pass;
+use crate::serializer::SerializedMesh;
 use crate::swapchain::create_swapchain;
 use crate::sync_object::create_sync_objects;
 use crate::texture_image::create_texture_image;
@@ -501,28 +503,71 @@ impl VulkanApp {
         Ok(())
     }
 
-    pub(crate) fn load_model(&mut self, name: &str) -> Result<()> {
-        let supported_extensions = vec!["gltf", "glb", "obj"];
+    pub(crate) unsafe fn load_model(&mut self, name: &str) -> Result<()> {
+        let supported_extensions = vec!["bin", "glb", "gltf", "obj"];
 
-        for extension in supported_extensions {
-            let path = format!("assets/models/{}.{}", name, extension);
-            if std::path::Path::new(&path).exists() {
-                match extension {
-                    "gltf" => self.from_gltf(name, extension)?,
-                    "glb" => self.from_gltf(name, extension)?,
-                    "obj" => self.from_obj(name)?,
-                    _ => {}
+        let extension = supported_extensions
+            .iter()
+            .find_map(|extension| {
+                let path = format!("assets/models/{}.{}", name, extension);
+                if Path::new(&path).exists() {
+                    Some(extension)
+                } else {
+                    None
                 }
+            })
+            .ok_or(anyhow!("no supported model found"))?;
 
-                return Ok(());
-            }
+        if *extension != "bin" {
+            let path = format!("assets/models/{}.{}", name, extension);
+            let (vertices, indices) = match extension.as_ref() {
+                "gltf" => self.load_suboptimal_gltf(&path, &extension)?,
+                "glb" => self.load_suboptimal_gltf(&path, &extension)?,
+                "obj" => self.load_suboptimal_obj(&path)?,
+                _ => Err(anyhow!("unsupported extension"))?,
+            };
+            self.optimize_model(&name, &vertices, &indices)?;
         }
 
-        Err(anyhow!("Model not found"))
+        let path = format!("assets/models/{}.bin", name);
+        let (vertices, indices) = self.load_optimal(&path)?;
+
+        let (vertex_buffer, vertex_buffer_memory) = create_vertex_buffer(
+            &vertices,
+            &mut self.instance,
+            &mut self.device,
+            &mut self.data,
+        )?;
+        let (index_buffer, index_buffer_memory) = create_index_buffer(
+            &indices,
+            &mut self.instance,
+            &mut self.device,
+            &mut self.data,
+        )?;
+
+        // FIX starts without instances
+        let instances_positions = vec![
+            cgmath::Point3::new(0.0, -1.25, 1.0),
+            cgmath::Point3::new(0.0, 1.25, 1.0),
+            cgmath::Point3::new(0.0, -1.25, -1.0),
+            cgmath::Point3::new(0.0, 1.25, -1.0),
+        ];
+
+        let mesh = Mesh {
+            vertex_buffer,
+            vertex_buffer_memory,
+            index_buffer,
+            index_buffer_memory,
+            instances_positions,
+            index_count: indices.len() as u32,
+        };
+
+        self.assets.meshes.insert(name.to_string(), mesh);
+
+        Ok(())
     }
 
-    pub(crate) fn from_obj(&mut self, name: &str) -> Result<()> {
-        let path = format!("assets/models/{}.obj", name);
+    pub(crate) fn load_suboptimal_obj(&mut self, path: &str) -> Result<(Vec<Vertex>, Vec<u32>)> {
         let mut reader = std::io::BufReader::new(std::fs::File::open(path)?);
 
         let (models, _) = tobj::load_obj_buf(
@@ -538,11 +583,9 @@ impl VulkanApp {
         let mut indices = Vec::new();
 
         for model in &models {
-            let mut unique_vertices = HashMap::new();
             for index in &model.mesh.indices {
                 let pos_offset = (3 * index) as usize;
                 let tex_coord_offset = (2 * index) as usize;
-
                 let vertex = Vertex {
                     pos: cgmath::vec3(
                         model.mesh.positions[pos_offset],
@@ -555,69 +598,54 @@ impl VulkanApp {
                         1.0 - model.mesh.texcoords[tex_coord_offset + 1],
                     ),
                 };
-
-                if let Some(index) = unique_vertices.get(&vertex) {
-                    indices.push(*index as u32);
-                } else {
-                    let index = vertices.len();
-                    unique_vertices.insert(vertex, index);
-                    vertices.push(vertex);
-                    indices.push(index as u32);
-                }
+                vertices.push(vertex);
+                indices.push(indices.len() as u32);
             }
         }
 
-        let instances = vec![
-            cgmath::Point3::new(0.0, -1.25, 1.0),
-            cgmath::Point3::new(0.0, 1.25, 1.0),
-            cgmath::Point3::new(0.0, -1.25, -1.0),
-            cgmath::Point3::new(0.0, 1.25, -1.0),
-        ];
-
-        self.register_model(name, &vertices, &indices, instances)?;
-
-        Ok(())
+        Ok((vertices, indices))
     }
 
-    fn register_model(
+    pub(crate) fn optimize_model(
         &mut self,
         name: &str,
-        vertices: &Vec<Vertex>,
-        indices: &Vec<u32>,
-        instances_positions: Vec<cgmath::Point3<f32>>,
+        old_vertices: &[Vertex],
+        old_indices: &Vec<u32>,
     ) -> Result<()> {
-        unsafe {
-            let (vertex_buffer, vertex_buffer_memory) = create_vertex_buffer(
-                &vertices,
-                &mut self.instance,
-                &mut self.device,
-                &mut self.data,
-            )?;
-            let (index_buffer, index_buffer_memory) = create_index_buffer(
-                &indices,
-                &mut self.instance,
-                &mut self.device,
-                &mut self.data,
-            )?;
+        let path = format!("assets/models/{}.bin", name);
+        let mut writer = std::io::BufWriter::new(std::fs::File::create(path)?);
 
-            let mesh = Mesh {
-                vertex_buffer,
-                vertex_buffer_memory,
-                index_buffer,
-                index_buffer_memory,
-                instances_positions,
-                index_count: indices.len() as u32,
-            };
-
-            self.assets.meshes.insert(name.to_string(), mesh);
+        let mut unique_vertices: HashMap<Vertex, usize> = HashMap::new();
+        let mut vertices = Vec::new();
+        let mut indices = Vec::new();
+        for index in old_indices {
+            let vertex = old_vertices[*index as usize];
+            if let Some(index) = unique_vertices.get(&vertex) {
+                indices.push(*index as u32);
+            } else {
+                let index = vertices.len();
+                unique_vertices.insert(vertex, index);
+                vertices.push(vertex);
+                indices.push(index as u32);
+            }
         }
+
+        bincode::serialize_into(&mut writer, &SerializedMesh { vertices, indices })?;
 
         Ok(())
     }
 
-    pub(crate) fn from_gltf(&mut self, name: &str, extension: &str) -> Result<()> {
-        let path_string = format!("assets/models/{}.{}", name, extension);
-        let path = std::path::Path::new(&path_string);
+    pub(crate) fn load_optimal(&mut self, path: &str) -> Result<(Vec<Vertex>, Vec<u32>)> {
+        let mut reader = std::io::BufReader::new(std::fs::File::open(path)?);
+        let serialized_mesh: SerializedMesh = bincode::deserialize_from(&mut reader)?;
+        Ok((serialized_mesh.vertices, serialized_mesh.indices))
+    }
+
+    pub(crate) fn load_suboptimal_gltf(
+        &mut self,
+        path: &str,
+        extension: &str,
+    ) -> Result<(Vec<Vertex>, Vec<u32>)> {
         let (gltf, buffers, _) = gltf::import(&path).expect("Failed to import gltf file");
 
         let mut buffer_data = Vec::new();
@@ -796,11 +824,7 @@ impl VulkanApp {
             }
         }
 
-        let instances = vec![cgmath::Point3::new(0.0, 0.0, 0.0)];
-
-        self.register_model(name, &vertices, &indices, instances)?;
-
-        Ok(())
+        Ok((vertices, indices))
     }
 
     // OPTIMIZE do not recreate swapchain if only the windows size changed

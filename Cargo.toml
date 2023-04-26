@@ -5,19 +5,21 @@ edition = "2021"
 
 [dependencies]
 anyhow = "1"
-base64 = "0.21.0"
-cgmath = "0.18.0"
-gltf = "1.1.0"
+base64 = "0.21"
+cgmath = { version = "0.18", features = ["serde"] }
+gltf = "1.1"
 lazy_static = "1"
 log = "0.4"
-memory-stats = "1.1.0"
-nalgebra-glm = "0.18.0"
+memory-stats = "1.1"
+nalgebra-glm = "0.18"
 png = "0.17"
 pretty_env_logger = "0.4"
 thiserror = "1"
 tobj = { version = "3", features = ["log"] }
-vulkanalia = { version = "=0.18.0", features = ["libloading", "window"] }
-winit = "0.28.3"
+vulkanalia = { version = "=0.18", features = ["libloading", "window"] }
+winit = "0.28"
+serde = { version = "1.0", features = ["derive"] }
+bincode = "1.3"
 
 [profile.dev]
 opt-level = 0
