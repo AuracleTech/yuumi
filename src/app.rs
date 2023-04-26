@@ -1,9 +1,5 @@
-use std::collections::HashMap;
-use std::path::Path;
-
 use anyhow::{anyhow, Result};
 
-use base64::Engine;
 use cgmath::EuclideanSpace;
 use winit::window::Window;
 
@@ -13,7 +9,7 @@ use vulkanalia::vk::{ExtDebugUtilsExtension, KhrSurfaceExtension, KhrSwapchainEx
 use vulkanalia::window::create_surface;
 use vulkanalia::Device;
 
-use crate::assets::{Assets, Mesh, Texture};
+use crate::assets::{Assets, Texture};
 use crate::command_buffer::{create_command_buffers, create_command_pools};
 use crate::depth_object::create_depth_objects;
 use crate::descriptor_layout::create_descriptor_set_layout;
@@ -27,14 +23,11 @@ use crate::msaa::create_color_objects;
 use crate::physical_device::pick_physical_device;
 use crate::pipeline::create_pipeline;
 use crate::render_pass::create_render_pass;
-use crate::serializer::SerializedMesh;
 use crate::swapchain::create_swapchain;
 use crate::sync_object::create_sync_objects;
 use crate::texture_image::create_texture_image;
 use crate::texture_sampler::create_texture_sampler;
 use crate::uniform_buffer::{create_uniform_buffers, UniformBufferObject};
-use crate::vertex::Vertex;
-use crate::vertex_buffer::{create_index_buffer, create_vertex_buffer};
 
 pub(crate) const MAX_FRAMES_IN_FLIGHT: usize = 2;
 
@@ -77,10 +70,7 @@ impl VulkanApp {
                 resized: false,
                 minimized: false,
                 metrics: Metrics::default(),
-                assets: Assets {
-                    meshes: HashMap::new(),
-                    textures: HashMap::new(),
-                },
+                assets: Assets::default(),
             };
             create_swapchain(&window, &app.instance, &app.device, &mut app.data)?;
             create_swapchain_image_views(&app.device, &mut app.data)?;
@@ -116,6 +106,11 @@ impl VulkanApp {
 
             Ok(app)
         }
+    }
+
+    fn load_model(&mut self, name: &str) -> Result<()> {
+        self.assets
+            .load_model(name, &mut self.instance, &mut self.device, &mut self.data)
     }
 
     pub(crate) unsafe fn render(&mut self, window: &Window) -> Result<()> {
@@ -328,7 +323,7 @@ impl VulkanApp {
         //     self.device
         //         .cmd_draw_indexed(secondary_command_buffer, mesh.index_count, 1, 0, 0, 0);
         // });
-        let viking_room_mesh: &&Mesh = &self
+        let mesh = self
             .assets
             .meshes
             .get("viking_room")
@@ -357,12 +352,12 @@ impl VulkanApp {
         self.device.cmd_bind_vertex_buffers(
             secondary_command_buffer,
             0,
-            &[viking_room_mesh.vertex_buffer],
+            &[mesh.vertex_buffer],
             &[0],
         );
         self.device.cmd_bind_index_buffer(
             secondary_command_buffer,
-            viking_room_mesh.index_buffer,
+            mesh.index_buffer,
             0,
             vk::IndexType::UINT32,
         );
@@ -384,7 +379,7 @@ impl VulkanApp {
             z: cgmath::Deg(time * 5.0),
         });
         let mut index = 0;
-        for instance_position in &viking_room_mesh.instances_positions {
+        for instance_position in &mesh.instances_positions {
             let model = cgmath::Matrix4::from_translation(instance_position.to_vec())
                 * cgmath::Matrix4::from(rotation);
             let model_bytes = unsafe {
@@ -412,7 +407,7 @@ impl VulkanApp {
             );
             self.device.cmd_draw_indexed(
                 secondary_command_buffer,
-                viking_room_mesh.index_count as u32,
+                mesh.index_count as u32,
                 1,
                 0,
                 0,
@@ -501,330 +496,6 @@ impl VulkanApp {
         );
 
         Ok(())
-    }
-
-    pub(crate) unsafe fn load_model(&mut self, name: &str) -> Result<()> {
-        let supported_extensions = vec!["bin", "glb", "gltf", "obj"];
-
-        let extension = supported_extensions
-            .iter()
-            .find_map(|extension| {
-                let path = format!("assets/models/{}.{}", name, extension);
-                if Path::new(&path).exists() {
-                    Some(extension)
-                } else {
-                    None
-                }
-            })
-            .ok_or(anyhow!("no supported model found"))?;
-
-        if *extension != "bin" {
-            let path = format!("assets/models/{}.{}", name, extension);
-            let (vertices, indices) = match extension.as_ref() {
-                "gltf" => self.load_suboptimal_gltf(&path, &extension)?,
-                "glb" => self.load_suboptimal_gltf(&path, &extension)?,
-                "obj" => self.load_suboptimal_obj(&path)?,
-                _ => Err(anyhow!("unsupported extension"))?,
-            };
-            self.optimize_model(&name, &vertices, &indices)?;
-        }
-
-        let path = format!("assets/models/{}.bin", name);
-        let (vertices, indices) = self.load_optimal(&path)?;
-
-        let (vertex_buffer, vertex_buffer_memory) = create_vertex_buffer(
-            &vertices,
-            &mut self.instance,
-            &mut self.device,
-            &mut self.data,
-        )?;
-        let (index_buffer, index_buffer_memory) = create_index_buffer(
-            &indices,
-            &mut self.instance,
-            &mut self.device,
-            &mut self.data,
-        )?;
-
-        // FIX starts without instances
-        let instances_positions = vec![
-            cgmath::Point3::new(0.0, -1.25, 1.0),
-            cgmath::Point3::new(0.0, 1.25, 1.0),
-            cgmath::Point3::new(0.0, -1.25, -1.0),
-            cgmath::Point3::new(0.0, 1.25, -1.0),
-        ];
-
-        let mesh = Mesh {
-            vertex_buffer,
-            vertex_buffer_memory,
-            index_buffer,
-            index_buffer_memory,
-            instances_positions,
-            index_count: indices.len() as u32,
-        };
-
-        self.assets.meshes.insert(name.to_string(), mesh);
-
-        Ok(())
-    }
-
-    pub(crate) fn load_suboptimal_obj(&mut self, path: &str) -> Result<(Vec<Vertex>, Vec<u32>)> {
-        let mut reader = std::io::BufReader::new(std::fs::File::open(path)?);
-
-        let (models, _) = tobj::load_obj_buf(
-            &mut reader,
-            &tobj::LoadOptions {
-                triangulate: true,
-                ..Default::default()
-            },
-            |_| Ok(Default::default()),
-        )?;
-
-        let mut vertices = Vec::new();
-        let mut indices = Vec::new();
-
-        for model in &models {
-            for index in &model.mesh.indices {
-                let pos_offset = (3 * index) as usize;
-                let tex_coord_offset = (2 * index) as usize;
-                let vertex = Vertex {
-                    pos: cgmath::vec3(
-                        model.mesh.positions[pos_offset],
-                        model.mesh.positions[pos_offset + 1],
-                        model.mesh.positions[pos_offset + 2],
-                    ),
-                    color: cgmath::vec3(1.0, 1.0, 1.0),
-                    tex_coord: cgmath::vec2(
-                        model.mesh.texcoords[tex_coord_offset],
-                        1.0 - model.mesh.texcoords[tex_coord_offset + 1],
-                    ),
-                };
-                vertices.push(vertex);
-                indices.push(indices.len() as u32);
-            }
-        }
-
-        Ok((vertices, indices))
-    }
-
-    pub(crate) fn optimize_model(
-        &mut self,
-        name: &str,
-        old_vertices: &[Vertex],
-        old_indices: &Vec<u32>,
-    ) -> Result<()> {
-        let path = format!("assets/models/{}.bin", name);
-        let mut writer = std::io::BufWriter::new(std::fs::File::create(path)?);
-
-        let mut unique_vertices: HashMap<Vertex, usize> = HashMap::new();
-        let mut vertices = Vec::new();
-        let mut indices = Vec::new();
-        for index in old_indices {
-            let vertex = old_vertices[*index as usize];
-            if let Some(index) = unique_vertices.get(&vertex) {
-                indices.push(*index as u32);
-            } else {
-                let index = vertices.len();
-                unique_vertices.insert(vertex, index);
-                vertices.push(vertex);
-                indices.push(index as u32);
-            }
-        }
-
-        bincode::serialize_into(&mut writer, &SerializedMesh { vertices, indices })?;
-
-        Ok(())
-    }
-
-    pub(crate) fn load_optimal(&mut self, path: &str) -> Result<(Vec<Vertex>, Vec<u32>)> {
-        let mut reader = std::io::BufReader::new(std::fs::File::open(path)?);
-        let serialized_mesh: SerializedMesh = bincode::deserialize_from(&mut reader)?;
-        Ok((serialized_mesh.vertices, serialized_mesh.indices))
-    }
-
-    pub(crate) fn load_suboptimal_gltf(
-        &mut self,
-        path: &str,
-        extension: &str,
-    ) -> Result<(Vec<Vertex>, Vec<u32>)> {
-        let (gltf, buffers, _) = gltf::import(&path).expect("Failed to import gltf file");
-
-        let mut buffer_data = Vec::new();
-        for buffer in gltf.buffers() {
-            match buffer.source() {
-                gltf::buffer::Source::Bin => {
-                    buffer_data.push(buffers[buffer.index()].clone());
-                }
-                gltf::buffer::Source::Uri(uri) => {
-                    if extension != "glb" {
-                        let uri = uri.trim_start_matches("data:application/octet-stream;base64,");
-                        let data = uri.as_bytes();
-                        let bin = base64::engine::general_purpose::STANDARD
-                            .decode(data)
-                            .expect("Failed to decode buffer data");
-                        buffer_data.push(gltf::buffer::Data(bin));
-                    } else {
-                        let bin = std::fs::read(uri).expect("Failed to read buffer data");
-                        buffer_data.push(gltf::buffer::Data(bin));
-                    }
-                }
-            }
-        }
-
-        // let mut materials = Vec::new();
-        // let mut material_meshes_pairs = HashMap::new();
-        // for gltf_material in gltf.materials() {
-        //     let pbr = gltf_material.pbr_metallic_roughness();
-        //     if let Some(gltf_texture) = &pbr.base_color_texture().map(|tex| tex.texture()) {
-        //         // println!(
-        //         //     "Loading PBR for model {} with texture {}",
-        //         //     path.display(),
-        //         //     gltf_texture.index()
-        //         // );
-
-        //         let wrap_s = match gltf_texture.sampler().wrap_s() {
-        //             WrappingMode::ClampToEdge => gl::CLAMP_TO_EDGE,
-        //             WrappingMode::MirroredRepeat => gl::MIRRORED_REPEAT,
-        //             WrappingMode::Repeat => gl::REPEAT,
-        //         };
-        //         let wrap_t = match gltf_texture.sampler().wrap_t() {
-        //             WrappingMode::ClampToEdge => gl::CLAMP_TO_EDGE,
-        //             WrappingMode::MirroredRepeat => gl::MIRRORED_REPEAT,
-        //             WrappingMode::Repeat => gl::REPEAT,
-        //         };
-        //         if let Some(filter_min) = gltf_texture.sampler().min_filter() {
-        //             match filter_min {
-        //                 MinFilter::Nearest => gl::NEAREST,
-        //                 MinFilter::Linear => gl::LINEAR,
-        //                 MinFilter::NearestMipmapNearest => gl::NEAREST_MIPMAP_NEAREST,
-        //                 MinFilter::LinearMipmapNearest => gl::LINEAR_MIPMAP_NEAREST,
-        //                 MinFilter::NearestMipmapLinear => gl::NEAREST_MIPMAP_LINEAR,
-        //                 MinFilter::LinearMipmapLinear => gl::LINEAR_MIPMAP_LINEAR,
-        //             };
-        //         }
-        //         if let Some(filter_mag) = gltf_texture.sampler().mag_filter() {
-        //             match filter_mag {
-        //                 MagFilter::Nearest => gl::NEAREST,
-        //                 MagFilter::Linear => gl::LINEAR,
-        //             };
-        //         }
-
-        //         let texture_source = gltf_texture.source().source();
-
-        //         let albedo_image = match texture_source {
-        //             Source::Uri { uri, .. } => Image::from_uri(uri),
-        //             Source::View { view, .. } => {
-        //                 let data = &buffer_data[view.buffer().index()][view.offset()..];
-        //                 Image::from_data(data)
-        //             }
-        //         };
-        //         let mut albedo = Texture::new(albedo_image);
-        //         albedo.gl_s_wrapping = wrap_s;
-        //         albedo.gl_t_wrapping = wrap_t;
-        //         // TODO add min and mag filter
-        //         // TODO mipmaps? and all the other texture options
-
-        //         materials.push(Material::Pbr { albedo });
-
-        //         // TEMPORARY - ASSIGN EVERY MESH TO THE FIRST MATERIAL
-        //         material_meshes_pairs.insert(0, vec![0]);
-        //     }
-
-        // if let Some(normal_texture) = gltf_material.normal_texture() {
-        //     println!(
-        //         "Loading normal texture for model {} with texture {}",
-        //         path.display(),
-        //         normal_texture.texture().index()
-        //     );
-
-        //     let wrap_s = match normal_texture.texture().sampler().wrap_s() {
-        //         WrappingMode::ClampToEdge => gl::CLAMP_TO_EDGE,
-        //         WrappingMode::MirroredRepeat => gl::MIRRORED_REPEAT,
-        //         WrappingMode::Repeat => gl::REPEAT,
-        //     };
-
-        //     let wrap_t = match normal_texture.texture().sampler().wrap_t() {
-        //         WrappingMode::ClampToEdge => gl::CLAMP_TO_EDGE,
-        //         WrappingMode::MirroredRepeat => gl::MIRRORED_REPEAT,
-        //         WrappingMode::Repeat => gl::REPEAT,
-        //     };
-
-        //     if let Some(filter_min) = normal_texture.texture().sampler().min_filter() {
-        //         match filter_min {
-        //             MinFilter::Nearest => gl::NEAREST,
-        //             MinFilter::Linear => gl::LINEAR,
-        //             MinFilter::NearestMipmapNearest => gl::NEAREST_MIPMAP_NEAREST,
-        //             MinFilter::LinearMipmapNearest => gl::LINEAR_MIPMAP_NEAREST,
-        //             MinFilter::NearestMipmapLinear => gl::NEAREST_MIPMAP_LINEAR,
-        //             MinFilter::LinearMipmapLinear => gl::LINEAR_MIPMAP_LINEAR,
-        //         };
-        //     }
-
-        //     if let Some(filter_mag) = normal_texture.texture().sampler().mag_filter() {
-        //         match filter_mag {
-        //             MagFilter::Nearest => gl::NEAREST,
-        //             MagFilter::Linear => gl::LINEAR,
-        //         };
-        //     }
-
-        //     let texture_source = normal_texture.texture().source().source();
-
-        //     let normal_image = match texture_source {
-        //         Source::Uri { uri, .. } => Image::from_uri(uri),
-        //         Source::View { view, .. } => {
-        //             let data = &buffer_data[view.buffer().index()][view.offset()..];
-        //             Image::from_data(data)
-        //         }
-        //     };
-
-        //     let mut normal = Texture::new(normal_image);
-        //     normal.gl_s_wrapping = wrap_s;
-        //     normal.gl_t_wrapping = wrap_t;
-        //     // TODO add min and mag filter
-        //     // TODO mipmaps? and all the other texture options
-
-        //     materials.push(Material::Normal { normal });
-        // }
-        // }
-        // FIX optimize ourselves by reusing vertices
-        let mut vertices = Vec::new();
-        let mut indices = Vec::new();
-
-        for mesh in gltf.meshes() {
-            for primitive in mesh.primitives() {
-                let reader = primitive.reader(|buffer| Some(&buffers[buffer.index()]));
-
-                // TODO Vertex color - Needs a new type called VertexGroup or something check on blender
-                if let Some(position_attribute) = reader.read_positions() {
-                    position_attribute.for_each(|position| {
-                        vertices.push(Vertex {
-                            pos: position.into(),
-                            color: cgmath::vec3(0.0, 0.0, 0.0),
-                            tex_coord: cgmath::vec2(0.0, 0.0),
-                        })
-                    });
-                }
-                // if let Some(normal_attribute) = reader.read_normals() {
-                //     let mut normal_index = 0;
-                //     normal_attribute.for_each(|normal| {
-                //         vertices[normal_index].normal = normal.into();
-                //         normal_index += 1;
-                //     });
-                // }
-                if let Some(tex_coord_attribute) = reader.read_tex_coords(0).map(|v| v.into_f32()) {
-                    let mut tex_coord_index = 0;
-                    tex_coord_attribute.for_each(|tex_coord| {
-                        vertices[tex_coord_index].tex_coord = tex_coord.into();
-                        tex_coord_index += 1;
-                    });
-                }
-
-                if let Some(indices_raw) = reader.read_indices() {
-                    indices.append(&mut indices_raw.into_u32().collect::<Vec<u32>>());
-                }
-            }
-        }
-
-        Ok((vertices, indices))
     }
 
     // OPTIMIZE do not recreate swapchain if only the windows size changed

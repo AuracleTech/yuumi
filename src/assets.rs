@@ -1,12 +1,37 @@
-use cgmath::Point3;
+use std::collections::HashMap;
+
 use vulkanalia::prelude::v1_0::*;
 
-use std::collections::HashMap;
+use anyhow::Result;
+use cgmath::Point3;
+
+use crate::{app::AppData, model};
 
 #[derive(Debug)]
 pub(crate) struct Assets {
     pub(crate) meshes: HashMap<String, Mesh>,
     pub(crate) textures: HashMap<String, Texture>,
+}
+impl Default for Assets {
+    fn default() -> Self {
+        Self {
+            meshes: HashMap::new(),
+            textures: HashMap::new(),
+        }
+    }
+}
+impl Assets {
+    pub(crate) fn load_model(
+        &mut self,
+        name: &str,
+        instance: &mut Instance,
+        device: &mut Device,
+        data: &mut AppData,
+    ) -> Result<()> {
+        let model = unsafe { model::load_model(name, instance, device, data)? };
+        self.meshes.insert(name.to_string(), model);
+        Ok(())
+    }
 }
 
 #[derive(Debug)]
