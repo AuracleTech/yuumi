@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use vulkanalia::prelude::v1_0::*;
 
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use cgmath::Point3;
 
 use crate::{app::AppData, model};
@@ -28,8 +28,14 @@ impl Assets {
         device: &mut Device,
         data: &mut AppData,
     ) -> Result<()> {
-        let model = model::load_model(name, instance, device, data)?;
-        self.meshes.insert(name.to_string(), model);
+        if self.meshes.contains_key(name) {
+            return Err(anyhow!("Mesh name already in use: {}", name));
+        }
+
+        self.meshes.insert(
+            name.to_string(),
+            model::load_model(name, instance, device, data)?,
+        );
         Ok(())
     }
 }
