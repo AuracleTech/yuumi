@@ -12,6 +12,10 @@ use crate::{
     vertex_buffer::{create_index_buffer, create_vertex_buffer},
 };
 
+pub(crate) struct Model {
+    pub(crate) meshes: Vec<Mesh>,
+}
+
 pub(crate) fn load_model(
     name: &str,
     instance: &mut Instance,
