@@ -1,7 +1,5 @@
 use std::time::{Duration, Instant};
 
-use memory_stats::memory_stats;
-
 const CYCLE_REPORT_INTERVAL: Duration = Duration::from_secs(1);
 #[derive(Debug)]
 pub(crate) struct Cycle {
@@ -75,6 +73,7 @@ impl Default for Metrics {
 }
 
 // pub(crate) fn print_memory_usage() {
+//     use memory_stats::memory_stats;
 //     if let Some(usage) = memory_stats() {
 //         log::info!("Virtual memory usage: {}", format_size(usage.virtual_mem));
 //         log::info!("Physical memory usage: {}", format_size(usage.physical_mem));
