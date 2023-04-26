@@ -12,8 +12,7 @@ use crate::{
     vertex_buffer::{create_index_buffer, create_vertex_buffer},
 };
 
-// TODO remove unsafe
-pub(crate) unsafe fn load_model(
+pub(crate) fn load_model(
     name: &str,
     instance: &mut Instance,
     device: &mut Device,
@@ -47,11 +46,6 @@ pub(crate) unsafe fn load_model(
     let path = format!("assets/models/{}.bin", name);
     let (vertices, indices) = load_optimal(&path)?;
 
-    let (vertex_buffer, vertex_buffer_memory) =
-        create_vertex_buffer(&vertices, instance, device, data)?;
-    let (index_buffer, index_buffer_memory) =
-        create_index_buffer(&indices, instance, device, data)?;
-
     // FIX starts without instances
     let instances_positions = vec![
         cgmath::Point3::new(0.0, -1.25, 1.0),
@@ -59,6 +53,11 @@ pub(crate) unsafe fn load_model(
         cgmath::Point3::new(0.0, -1.25, -1.0),
         cgmath::Point3::new(0.0, 1.25, -1.0),
     ];
+
+    let (vertex_buffer, vertex_buffer_memory) =
+        unsafe { create_vertex_buffer(&vertices, instance, device, data)? };
+    let (index_buffer, index_buffer_memory) =
+        unsafe { create_index_buffer(&indices, instance, device, data)? };
 
     Ok(Mesh {
         vertex_buffer,

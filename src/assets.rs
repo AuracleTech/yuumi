@@ -28,7 +28,7 @@ impl Assets {
         device: &mut Device,
         data: &mut AppData,
     ) -> Result<()> {
-        let model = unsafe { model::load_model(name, instance, device, data)? };
+        let model = model::load_model(name, instance, device, data)?;
         self.meshes.insert(name.to_string(), model);
         Ok(())
     }
