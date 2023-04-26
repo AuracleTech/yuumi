@@ -5,7 +5,7 @@ use vulkanalia::prelude::v1_0::*;
 use anyhow::{anyhow, Result};
 use cgmath::Point3;
 
-use crate::{app::AppData, model};
+use crate::{app::AppData, model, texture};
 
 #[derive(Debug)]
 pub(crate) struct Assets {
@@ -37,6 +37,24 @@ impl Assets {
         self.meshes.insert(
             name.to_string(),
             model::load_model(name, instance, device, data)?,
+        );
+        Ok(())
+    }
+
+    pub(crate) fn load_texture(
+        &mut self,
+        name: &str,
+        instance: &mut Instance,
+        device: &mut Device,
+        data: &mut AppData,
+    ) -> Result<()> {
+        if self.textures.contains_key(name) {
+            return Err(anyhow!("Mesh name already in use: {}", name));
+        }
+
+        self.textures.insert(
+            name.to_string(),
+            texture::load_texture(name, instance, device, data)?,
         );
         Ok(())
     }

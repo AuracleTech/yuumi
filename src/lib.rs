@@ -20,6 +20,7 @@ mod serializer;
 mod single_time_cmd;
 mod swapchain;
 mod sync_object;
+mod texture;
 mod texture_image;
 mod texture_sampler;
 mod uniform_buffer;

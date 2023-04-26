@@ -9,13 +9,13 @@ use vulkanalia::vk::{ExtDebugUtilsExtension, KhrSurfaceExtension, KhrSwapchainEx
 use vulkanalia::window::create_surface;
 use vulkanalia::Device;
 
-use crate::assets::{Assets, Texture};
+use crate::assets::Assets;
 use crate::command_buffer::{create_command_buffers, create_command_pools};
 use crate::depth_object::create_depth_objects;
 use crate::descriptor_layout::create_descriptor_set_layout;
 use crate::descriptor_pool::{create_descriptor_pool, create_descriptor_sets};
 use crate::framebuffer::create_framebuffers;
-use crate::image_view::{create_image_view, create_swapchain_image_views};
+use crate::image_view::create_swapchain_image_views;
 use crate::instance::create_instance;
 use crate::logical_device::create_logical_device;
 use crate::metrics::Metrics;
@@ -25,8 +25,6 @@ use crate::pipeline::create_pipeline;
 use crate::render_pass::create_render_pass;
 use crate::swapchain::create_swapchain;
 use crate::sync_object::create_sync_objects;
-use crate::texture_image::create_texture_image;
-use crate::texture_sampler::create_texture_sampler;
 use crate::uniform_buffer::{create_uniform_buffers, UniformBufferObject};
 
 pub(crate) const MAX_FRAMES_IN_FLIGHT: usize = 2;
@@ -88,7 +86,10 @@ impl VulkanApp {
             app.assets.active_mesh.push("viking_room".to_string());
             app.assets.active_mesh.push("cube".to_string());
 
-            app.load_texture_png("viking_room")?;
+            app.load_texture("viking_room")?;
+
+            // FIX active textures
+
             let texture = app
                 .assets
                 .textures
@@ -115,6 +116,11 @@ impl VulkanApp {
     fn load_model(&mut self, name: &str) -> Result<()> {
         self.assets
             .load_model(name, &mut self.instance, &mut self.device, &mut self.data)
+    }
+
+    fn load_texture(&mut self, name: &str) -> Result<()> {
+        self.assets
+            .load_texture(name, &mut self.instance, &mut self.device, &mut self.data)
     }
 
     pub(crate) unsafe fn render(&mut self, window: &Window) -> Result<()> {
@@ -419,52 +425,6 @@ impl VulkanApp {
 
         self.device
             .unmap_memory(self.data.uniform_buffers_memory[image_index]);
-
-        Ok(())
-    }
-
-    pub(crate) unsafe fn load_texture_png(&mut self, name: &str) -> Result<()> {
-        let path = format!("assets/models/{}.png", name);
-        let image = std::fs::File::open(path)?;
-
-        let decoder = png::Decoder::new(image);
-        let mut reader = decoder.read_info()?;
-
-        let mut pixels = vec![0; reader.info().raw_bytes()];
-        reader.next_frame(&mut pixels)?;
-
-        let size = reader.info().raw_bytes() as u64;
-        let (width, height) = reader.info().size();
-
-        let (image, image_memory, mip_levels) = create_texture_image(
-            &mut self.instance,
-            &mut self.device,
-            &mut self.data,
-            &pixels,
-            size,
-            width,
-            height,
-        )?;
-
-        // OPTIMIZE reuse image view and sampler for the most textures possible
-        let format = vk::Format::R8G8B8A8_SRGB;
-        let aspects = vk::ImageAspectFlags::COLOR;
-        let image_view = create_image_view(&self.device, &image, &format, &aspects, &mip_levels)?;
-        let sampler = create_texture_sampler(&self.device, &mut self.data, &mip_levels)?;
-
-        self.assets.textures.insert(
-            name.to_string(),
-            Texture {
-                image,
-                image_view,
-                image_memory,
-                _mip_levels: mip_levels,
-                _width: width,
-                _height: height,
-                _format: vk::Format::R8G8B8A8_SRGB,
-                sampler,
-            },
-        );
 
         Ok(())
     }
