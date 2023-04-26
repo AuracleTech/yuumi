@@ -16,7 +16,6 @@ mod msaa;
 mod physical_device;
 mod pipeline;
 mod render_pass;
-mod serializer;
 mod single_time_cmd;
 mod swapchain;
 mod sync_object;

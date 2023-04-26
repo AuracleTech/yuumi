@@ -1,14 +1,12 @@
-use std::path::Path;
-
-use anyhow::{anyhow, Result};
-use vulkanalia::prelude::v1_0::*;
-use vulkanalia::{Device, Instance};
-
 use crate::app::AppData;
 use crate::image_view::create_image_view;
-use crate::serializer::SerializedTexture;
 use crate::texture_image::create_texture_image;
 use crate::texture_sampler::create_texture_sampler;
+use anyhow::{anyhow, Result};
+use serde::{Deserialize, Serialize};
+use std::path::Path;
+use vulkanalia::prelude::v1_0::*;
+use vulkanalia::{Device, Instance};
 
 #[derive(Debug)]
 pub(crate) struct Texture {
@@ -22,6 +20,13 @@ pub(crate) struct Texture {
     pub(crate) _format: vk::Format,
     // OPTIMIZE use a reference to the texture sampler to reuse the same sampler for multiple textures
     pub(crate) sampler: vk::Sampler,
+}
+
+#[derive(Serialize, Deserialize)]
+pub(crate) struct SerializedTexture {
+    pub(crate) width: u32,
+    pub(crate) height: u32,
+    pub(crate) pixels: Vec<u8>,
 }
 
 pub(crate) fn load_texture(

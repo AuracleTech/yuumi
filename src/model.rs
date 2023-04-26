@@ -1,16 +1,14 @@
-use std::{collections::HashMap, path::Path};
-
-use anyhow::{anyhow, Result};
-use base64::Engine;
-use vulkanalia::{Device, Instance};
-
 use crate::{
     app::AppData,
     assets::Mesh,
-    serializer::SerializedMesh,
+    mesh::SerializedMesh,
     vertex::Vertex,
     vertex_buffer::{create_index_buffer, create_vertex_buffer},
 };
+use anyhow::{anyhow, Result};
+use base64::Engine;
+use std::{collections::HashMap, path::Path};
+use vulkanalia::{Device, Instance};
 
 pub(crate) struct Model {
     pub(crate) meshes: Vec<Mesh>,
