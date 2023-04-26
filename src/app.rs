@@ -30,7 +30,7 @@ pub(crate) const VALIDATION_LAYER: vk::ExtensionName =
     vk::ExtensionName::from_bytes(b"VK_LAYER_KHRONOS_validation");
 
 #[derive(Debug)]
-pub(crate) struct VulkanApp {
+pub(crate) struct App {
     _entry: Entry,
     instance: Instance,
     data: AppData,
@@ -43,7 +43,7 @@ pub(crate) struct VulkanApp {
     pub(crate) assets: Assets,
 }
 
-impl VulkanApp {
+impl App {
     pub(crate) fn new(window: &Window) -> Result<Self> {
         unsafe {
             let loader = LibloadingLoader::new(LIBRARY)?;
@@ -492,7 +492,7 @@ impl VulkanApp {
     }
 }
 
-impl Drop for VulkanApp {
+impl Drop for App {
     fn drop(&mut self) {
         unsafe {
             self.destroy_swapchain();
