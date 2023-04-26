@@ -53,11 +53,9 @@ pub fn run(window_title: &str) -> Result<()> {
     event_loop.run(move |event, _, control_flow| {
         *control_flow = ControlFlow::Poll;
         match event {
-            // Render a frame if our Vulkan app is not being destroyed.
             Event::MainEventsCleared if !app.destroying && !app.minimized => {
                 unsafe { app.render(&window) }.expect("Failed to render");
             }
-            // Destroy our Vulkan app.
             Event::WindowEvent {
                 event: WindowEvent::CloseRequested,
                 ..
