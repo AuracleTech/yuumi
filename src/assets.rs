@@ -1,24 +1,23 @@
 use crate::{
     app::AppData,
-    model,
+    model::{self, Model},
     texture::{self, Texture},
 };
 use anyhow::{anyhow, Result};
-use cgmath::Point3;
 use std::collections::HashMap;
 use vulkanalia::prelude::v1_0::*;
 
 #[derive(Debug)]
 pub(crate) struct Assets {
-    pub(crate) meshes: HashMap<String, Mesh>,
-    pub(crate) active_mesh: Vec<String>,
+    pub(crate) models: HashMap<String, Model>,
+    pub(crate) active_models: Vec<String>,
     pub(crate) textures: HashMap<String, Texture>,
 }
 impl Default for Assets {
     fn default() -> Self {
         Self {
-            meshes: HashMap::new(),
-            active_mesh: Vec::new(),
+            models: HashMap::new(),
+            active_models: Vec::new(),
             textures: HashMap::new(),
         }
     }
@@ -31,11 +30,11 @@ impl Assets {
         device: &mut Device,
         data: &mut AppData,
     ) -> Result<()> {
-        if self.meshes.contains_key(name) {
+        if self.models.contains_key(name) {
             return Err(anyhow!("Mesh name already in use: {}", name));
         }
 
-        self.meshes.insert(
+        self.models.insert(
             name.to_string(),
             model::load_model(name, instance, device, data)?,
         );
@@ -59,15 +58,4 @@ impl Assets {
         );
         Ok(())
     }
-}
-
-#[derive(Debug)]
-pub(crate) struct Mesh {
-    pub(crate) vertex_buffer: vk::Buffer,
-    pub(crate) vertex_buffer_memory: vk::DeviceMemory,
-    pub(crate) index_buffer: vk::Buffer,
-    pub(crate) index_buffer_memory: vk::DeviceMemory,
-    pub(crate) index_count: u32,
-    // TODO make instances pos, rot, scale a separate struct
-    pub(crate) instances_positions: Vec<Point3<f32>>,
 }

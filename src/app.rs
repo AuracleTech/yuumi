@@ -78,8 +78,8 @@ impl App {
             app.load_model("cube")?;
             app.load_model("viking_room")?;
 
-            app.assets.active_mesh.push("viking_room".to_string());
-            app.assets.active_mesh.push("cube".to_string());
+            app.assets.active_models.push("viking_room".to_string());
+            app.assets.active_models.push("cube".to_string());
 
             app.load_texture("viking_room")?;
 
@@ -317,74 +317,75 @@ impl App {
         );
 
         // Iterate through the meshes
-        self.assets.active_mesh.iter().for_each(|name| {
-            let mesh = &self.assets.meshes.get(name).expect("Mesh not found");
-
-            self.device.cmd_bind_vertex_buffers(
-                secondary_command_buffer,
-                0,
-                &[mesh.vertex_buffer],
-                &[0],
-            );
-            self.device.cmd_bind_index_buffer(
-                secondary_command_buffer,
-                mesh.index_buffer,
-                0,
-                vk::IndexType::UINT32,
-            );
-            self.device.cmd_bind_descriptor_sets(
-                secondary_command_buffer,
-                vk::PipelineBindPoint::GRAPHICS,
-                self.data.pipeline_layout,
-                0,
-                &[self.data.descriptor_sets[image_index]],
-                &[],
-            );
-
-            // Push constants
-
-            let time = self.metrics.engine_start.elapsed().as_secs_f32();
-            let rotation = cgmath::Quaternion::from(cgmath::Euler {
-                x: cgmath::Deg(0.0),
-                y: cgmath::Deg(0.0),
-                z: cgmath::Deg(time * 5.0),
-            });
-            let mut index = 0;
-            for instance_position in &mesh.instances_positions {
-                let model = cgmath::Matrix4::from_translation(instance_position.to_vec())
-                    * cgmath::Matrix4::from(rotation);
-                let model_bytes = unsafe {
-                    std::slice::from_raw_parts(
-                        &model as *const cgmath::Matrix4<f32> as *const u8,
-                        std::mem::size_of::<cgmath::Matrix4<f32>>(),
-                    )
-                };
-                self.device.cmd_push_constants(
+        self.assets.active_models.iter().for_each(|name| {
+            let model = &self.assets.models.get(name).expect("Mesh not found");
+            for mesh in &model.meshes {
+                self.device.cmd_bind_vertex_buffers(
                     secondary_command_buffer,
+                    0,
+                    &[mesh.vertex_buffer],
+                    &[0],
+                );
+                self.device.cmd_bind_index_buffer(
+                    secondary_command_buffer,
+                    mesh.index_buffer,
+                    0,
+                    vk::IndexType::UINT32,
+                );
+                self.device.cmd_bind_descriptor_sets(
+                    secondary_command_buffer,
+                    vk::PipelineBindPoint::GRAPHICS,
                     self.data.pipeline_layout,
-                    vk::ShaderStageFlags::VERTEX,
                     0,
-                    model_bytes,
+                    &[self.data.descriptor_sets[image_index]],
+                    &[],
                 );
 
-                let opacity = 1.0 - (index as f32 * 0.3);
-                let opacity_bytes = opacity.to_ne_bytes();
-                self.device.cmd_push_constants(
-                    secondary_command_buffer,
-                    self.data.pipeline_layout,
-                    vk::ShaderStageFlags::FRAGMENT,
-                    64,
-                    &opacity_bytes,
-                );
-                self.device.cmd_draw_indexed(
-                    secondary_command_buffer,
-                    mesh.index_count as u32,
-                    1,
-                    0,
-                    0,
-                    0,
-                );
-                index += 1;
+                // Push constants
+
+                let time = self.metrics.engine_start.elapsed().as_secs_f32();
+                let rotation = cgmath::Quaternion::from(cgmath::Euler {
+                    x: cgmath::Deg(0.0),
+                    y: cgmath::Deg(0.0),
+                    z: cgmath::Deg(time * 5.0),
+                });
+                let mut index = 0;
+                for instance_position in &mesh.instances_positions {
+                    let model = cgmath::Matrix4::from_translation(instance_position.to_vec())
+                        * cgmath::Matrix4::from(rotation);
+                    let model_bytes = unsafe {
+                        std::slice::from_raw_parts(
+                            &model as *const cgmath::Matrix4<f32> as *const u8,
+                            std::mem::size_of::<cgmath::Matrix4<f32>>(),
+                        )
+                    };
+                    self.device.cmd_push_constants(
+                        secondary_command_buffer,
+                        self.data.pipeline_layout,
+                        vk::ShaderStageFlags::VERTEX,
+                        0,
+                        model_bytes,
+                    );
+
+                    let opacity = 1.0 - (index as f32 * 0.3);
+                    let opacity_bytes = opacity.to_ne_bytes();
+                    self.device.cmd_push_constants(
+                        secondary_command_buffer,
+                        self.data.pipeline_layout,
+                        vk::ShaderStageFlags::FRAGMENT,
+                        64,
+                        &opacity_bytes,
+                    );
+                    self.device.cmd_draw_indexed(
+                        secondary_command_buffer,
+                        mesh.index_count as u32,
+                        1,
+                        0,
+                        0,
+                        0,
+                    );
+                    index += 1;
+                }
             }
         });
 
@@ -514,11 +515,13 @@ impl Drop for App {
             self.device
                 .destroy_descriptor_set_layout(self.data.descriptor_set_layout, None);
 
-            self.assets.meshes.iter().for_each(|(_, mesh)| {
-                self.device.destroy_buffer(mesh.vertex_buffer, None);
-                self.device.free_memory(mesh.vertex_buffer_memory, None);
-                self.device.destroy_buffer(mesh.index_buffer, None);
-                self.device.free_memory(mesh.index_buffer_memory, None);
+            self.assets.models.iter().for_each(|(_, model)| {
+                for mesh in &model.meshes {
+                    self.device.destroy_buffer(mesh.vertex_buffer, None);
+                    self.device.free_memory(mesh.vertex_buffer_memory, None);
+                    self.device.destroy_buffer(mesh.index_buffer, None);
+                    self.device.free_memory(mesh.index_buffer_memory, None);
+                }
             });
 
             self.data

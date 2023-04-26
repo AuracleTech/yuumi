@@ -1,17 +1,23 @@
 use crate::{
     app::AppData,
-    assets::Mesh,
-    mesh::SerializedMesh,
+    mesh::{Mesh, SerializedMesh},
     vertex::Vertex,
     vertex_buffer::{create_index_buffer, create_vertex_buffer},
 };
 use anyhow::{anyhow, Result};
 use base64::Engine;
+use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, path::Path};
 use vulkanalia::{Device, Instance};
 
+#[derive(Debug)]
 pub(crate) struct Model {
     pub(crate) meshes: Vec<Mesh>,
+}
+
+#[derive(Serialize, Deserialize)]
+pub(crate) struct SerializedModel {
+    pub(crate) meshes: Vec<SerializedMesh>,
 }
 
 pub(crate) fn load_model(
@@ -19,7 +25,7 @@ pub(crate) fn load_model(
     instance: &mut Instance,
     device: &mut Device,
     data: &mut AppData,
-) -> Result<Mesh> {
+) -> Result<Model> {
     let supported_extensions = vec!["bin", "glb", "gltf"];
 
     let extension = supported_extensions
@@ -36,71 +42,80 @@ pub(crate) fn load_model(
 
     if *extension != "bin" {
         let path = format!("assets/models/{}.{}", name, extension);
-        let (vertices, indices) = match extension.as_ref() {
+        let serialized = match extension.as_ref() {
             "gltf" => load_suboptimal_gltf(&path, &extension)?,
             "glb" => load_suboptimal_gltf(&path, &extension)?,
             _ => Err(anyhow!("unsupported file extension: {}", extension))?,
         };
-        save_optimal(&name, &vertices, &indices)?;
+        save_optimal(&name, serialized)?;
     }
 
     let path = format!("assets/models/{}.bin", name);
-    let (vertices, indices) = load_optimal(&path)?;
-
-    // FIX starts without instances
-    let instances_positions = vec![
-        cgmath::Point3::new(0.0, -1.25, 1.0),
-        cgmath::Point3::new(0.0, 1.25, 1.0),
-        cgmath::Point3::new(0.0, -1.25, -1.0),
-        cgmath::Point3::new(0.0, 1.25, -1.0),
-    ];
-
-    let (vertex_buffer, vertex_buffer_memory) =
-        unsafe { create_vertex_buffer(&vertices, instance, device, data)? };
-    let (index_buffer, index_buffer_memory) =
-        unsafe { create_index_buffer(&indices, instance, device, data)? };
-
-    Ok(Mesh {
-        vertex_buffer,
-        vertex_buffer_memory,
-        index_buffer,
-        index_buffer_memory,
-        instances_positions,
-        index_count: indices.len() as u32,
-    })
-}
-
-fn load_optimal(path: &str) -> Result<(Vec<Vertex>, Vec<u32>)> {
     let mut reader = std::io::BufReader::new(std::fs::File::open(path)?);
-    let serialized: SerializedMesh = bincode::deserialize_from(&mut reader)?;
-    Ok((serialized.vertices, serialized.indices))
+    let serialized: SerializedModel = bincode::deserialize_from(&mut reader)?;
+
+    let mut model = Model { meshes: vec![] };
+
+    for mesh in serialized.meshes {
+        let (vertex_buffer, vertex_buffer_memory) =
+            unsafe { create_vertex_buffer(&mesh.vertices, instance, device, data)? };
+        let (index_buffer, index_buffer_memory) =
+            unsafe { create_index_buffer(&mesh.indices, instance, device, data)? };
+
+        // FIX starts without instances
+        let instances_positions = vec![
+            cgmath::Point3::new(0.0, -1.25, 1.0),
+            cgmath::Point3::new(0.0, 1.25, 1.0),
+            cgmath::Point3::new(0.0, -1.25, -1.0),
+            cgmath::Point3::new(0.0, 1.25, -1.0),
+        ];
+
+        model.meshes.push(Mesh {
+            vertex_buffer,
+            vertex_buffer_memory,
+            index_buffer,
+            index_buffer_memory,
+            instances_positions,
+            index_count: mesh.indices.len() as u32,
+        });
+    }
+
+    Ok(model)
 }
 
-fn save_optimal(name: &str, old_vertices: &[Vertex], old_indices: &Vec<u32>) -> Result<()> {
+fn save_optimal(name: &str, serialized: SerializedModel) -> Result<()> {
     let path = format!("assets/models/{}.bin", name);
     let mut writer = std::io::BufWriter::new(std::fs::File::create(path)?);
 
-    let mut unique_vertices: HashMap<Vertex, usize> = HashMap::new();
-    let mut vertices = Vec::new();
-    let mut indices = Vec::new();
-    for index in old_indices {
-        let vertex = old_vertices[*index as usize];
-        if let Some(index) = unique_vertices.get(&vertex) {
-            indices.push(*index as u32);
-        } else {
-            let index = vertices.len();
-            unique_vertices.insert(vertex, index);
-            vertices.push(vertex);
-            indices.push(index as u32);
+    let mut new_serialized = SerializedModel { meshes: vec![] };
+
+    for mesh in &serialized.meshes {
+        let mut unique_vertices: HashMap<Vertex, usize> = HashMap::new();
+        let mut vertices = Vec::new();
+        let mut indices = Vec::new();
+        for index in &mesh.indices {
+            let vertex = mesh.vertices[*index as usize];
+            if let Some(index) = unique_vertices.get(&vertex) {
+                indices.push(*index as u32);
+            } else {
+                let index = vertices.len();
+                unique_vertices.insert(vertex, index);
+                vertices.push(vertex);
+                indices.push(index as u32);
+            }
         }
+
+        new_serialized
+            .meshes
+            .push(SerializedMesh { vertices, indices });
     }
 
-    bincode::serialize_into(&mut writer, &SerializedMesh { vertices, indices })?;
+    bincode::serialize_into(&mut writer, &new_serialized)?;
 
     Ok(())
 }
 
-fn load_suboptimal_gltf(path: &str, extension: &str) -> Result<(Vec<Vertex>, Vec<u32>)> {
+fn load_suboptimal_gltf(path: &str, extension: &str) -> Result<SerializedModel> {
     let (gltf, buffers, _) = gltf::import(&path).expect("Failed to import gltf file");
 
     let mut buffer_data = Vec::new();
@@ -240,11 +255,14 @@ fn load_suboptimal_gltf(path: &str, extension: &str) -> Result<(Vec<Vertex>, Vec
     //     materials.push(Material::Normal { normal });
     // }
     // }
-    let mut vertices = Vec::new();
-    let mut indices = Vec::new();
+
+    let mut serialized = SerializedModel { meshes: vec![] };
 
     for mesh in gltf.meshes() {
         for primitive in mesh.primitives() {
+            let mut vertices = Vec::new();
+            let mut indices = Vec::new();
+
             let reader = primitive.reader(|buffer| Some(&buffers[buffer.index()]));
 
             // TODO Vertex color - Needs a new type called VertexGroup or something check on blender
@@ -275,8 +293,10 @@ fn load_suboptimal_gltf(path: &str, extension: &str) -> Result<(Vec<Vertex>, Vec
             if let Some(indices_raw) = reader.read_indices() {
                 indices.append(&mut indices_raw.into_u32().collect::<Vec<u32>>());
             }
+
+            serialized.meshes.push(SerializedMesh { vertices, indices });
         }
     }
 
-    Ok((vertices, indices))
+    Ok(serialized)
 }
