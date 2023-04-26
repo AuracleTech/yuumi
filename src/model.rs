@@ -22,7 +22,7 @@ pub(crate) fn load_model(
     device: &mut Device,
     data: &mut AppData,
 ) -> Result<Mesh> {
-    let supported_extensions = vec!["bin", "glb", "gltf", "obj"];
+    let supported_extensions = vec!["bin", "glb", "gltf"];
 
     let extension = supported_extensions
         .iter()
@@ -41,7 +41,6 @@ pub(crate) fn load_model(
         let (vertices, indices) = match extension.as_ref() {
             "gltf" => load_suboptimal_gltf(&path, &extension)?,
             "glb" => load_suboptimal_gltf(&path, &extension)?,
-            "obj" => load_suboptimal_obj(&path)?,
             _ => Err(anyhow!("unsupported extension"))?,
         };
         optimize_model(&name, &vertices, &indices)?;
@@ -71,45 +70,6 @@ pub(crate) fn load_model(
         instances_positions,
         index_count: indices.len() as u32,
     })
-}
-
-fn load_suboptimal_obj(path: &str) -> Result<(Vec<Vertex>, Vec<u32>)> {
-    let mut reader = std::io::BufReader::new(std::fs::File::open(path)?);
-
-    let (models, _) = tobj::load_obj_buf(
-        &mut reader,
-        &tobj::LoadOptions {
-            triangulate: true,
-            ..Default::default()
-        },
-        |_| Ok(Default::default()),
-    )?;
-
-    let mut vertices = Vec::new();
-    let mut indices = Vec::new();
-
-    for model in &models {
-        for index in &model.mesh.indices {
-            let pos_offset = (3 * index) as usize;
-            let tex_coord_offset = (2 * index) as usize;
-            let vertex = Vertex {
-                pos: cgmath::vec3(
-                    model.mesh.positions[pos_offset],
-                    model.mesh.positions[pos_offset + 1],
-                    model.mesh.positions[pos_offset + 2],
-                ),
-                color: cgmath::vec3(1.0, 1.0, 1.0),
-                tex_coord: cgmath::vec2(
-                    model.mesh.texcoords[tex_coord_offset],
-                    1.0 - model.mesh.texcoords[tex_coord_offset + 1],
-                ),
-            };
-            vertices.push(vertex);
-            indices.push(indices.len() as u32);
-        }
-    }
-
-    Ok((vertices, indices))
 }
 
 pub(crate) fn optimize_model(
