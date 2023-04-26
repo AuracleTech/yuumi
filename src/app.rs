@@ -84,6 +84,10 @@ impl VulkanApp {
 
             app.load_model("cube")?;
             app.load_model("viking_room")?;
+
+            app.assets.active_mesh.push("viking_room".to_string());
+            app.assets.active_mesh.push("cube".to_string());
+
             app.load_texture_png("viking_room")?;
             let texture = app
                 .assets
@@ -291,44 +295,6 @@ impl VulkanApp {
 
         let secondary_command_buffer = secondary_command_buffers[secondary_command_buffer_index];
 
-        // Iterate through the meshes
-        // self.assets.meshes.iter().for_each(|(name, mesh)| {
-        //     // Bind the descriptor set
-        //     self.device.cmd_bind_descriptor_sets(
-        //         secondary_command_buffer,
-        //         vk::PipelineBindPoint::GRAPHICS,
-        //         self.data.pipeline_layout,
-        //         0,
-        //         &[self.data.descriptor_sets[image_index]],
-        //         &[],
-        //     );
-
-        //     // Bind the vertex buffer
-        //     self.device.cmd_bind_vertex_buffers(
-        //         secondary_command_buffer,
-        //         0,
-        //         &[mesh.vertex_buffer],
-        //         &[0],
-        //     );
-
-        //     // Bind the index buffer
-        //     self.device.cmd_bind_index_buffer(
-        //         secondary_command_buffer,
-        //         mesh.index_buffer,
-        //         0,
-        //         vk::IndexType::UINT32,
-        //     );
-
-        //     // Draw the mesh
-        //     self.device
-        //         .cmd_draw_indexed(secondary_command_buffer, mesh.index_count, 1, 0, 0, 0);
-        // });
-        let mesh = self
-            .assets
-            .meshes
-            .get("viking_room")
-            .expect("viking_room mesh not found");
-
         // Commands
 
         let inheritance_info = vk::CommandBufferInheritanceInfo::builder()
@@ -349,72 +315,77 @@ impl VulkanApp {
             self.data.pipeline,
         );
 
-        self.device.cmd_bind_vertex_buffers(
-            secondary_command_buffer,
-            0,
-            &[mesh.vertex_buffer],
-            &[0],
-        );
-        self.device.cmd_bind_index_buffer(
-            secondary_command_buffer,
-            mesh.index_buffer,
-            0,
-            vk::IndexType::UINT32,
-        );
-        self.device.cmd_bind_descriptor_sets(
-            secondary_command_buffer,
-            vk::PipelineBindPoint::GRAPHICS,
-            self.data.pipeline_layout,
-            0,
-            &[self.data.descriptor_sets[image_index]],
-            &[],
-        );
+        // Iterate through the meshes
+        self.assets.active_mesh.iter().for_each(|name| {
+            let mesh = &self.assets.meshes.get(name).expect("Mesh not found");
 
-        // Push constants
+            self.device.cmd_bind_vertex_buffers(
+                secondary_command_buffer,
+                0,
+                &[mesh.vertex_buffer],
+                &[0],
+            );
+            self.device.cmd_bind_index_buffer(
+                secondary_command_buffer,
+                mesh.index_buffer,
+                0,
+                vk::IndexType::UINT32,
+            );
+            self.device.cmd_bind_descriptor_sets(
+                secondary_command_buffer,
+                vk::PipelineBindPoint::GRAPHICS,
+                self.data.pipeline_layout,
+                0,
+                &[self.data.descriptor_sets[image_index]],
+                &[],
+            );
 
-        let time = self.metrics.engine_start.elapsed().as_secs_f32();
-        let rotation = cgmath::Quaternion::from(cgmath::Euler {
-            x: cgmath::Deg(0.0),
-            y: cgmath::Deg(0.0),
-            z: cgmath::Deg(time * 5.0),
+            // Push constants
+
+            let time = self.metrics.engine_start.elapsed().as_secs_f32();
+            let rotation = cgmath::Quaternion::from(cgmath::Euler {
+                x: cgmath::Deg(0.0),
+                y: cgmath::Deg(0.0),
+                z: cgmath::Deg(time * 5.0),
+            });
+            let mut index = 0;
+            for instance_position in &mesh.instances_positions {
+                let model = cgmath::Matrix4::from_translation(instance_position.to_vec())
+                    * cgmath::Matrix4::from(rotation);
+                let model_bytes = unsafe {
+                    std::slice::from_raw_parts(
+                        &model as *const cgmath::Matrix4<f32> as *const u8,
+                        std::mem::size_of::<cgmath::Matrix4<f32>>(),
+                    )
+                };
+                self.device.cmd_push_constants(
+                    secondary_command_buffer,
+                    self.data.pipeline_layout,
+                    vk::ShaderStageFlags::VERTEX,
+                    0,
+                    model_bytes,
+                );
+
+                let opacity = 1.0 - (index as f32 * 0.3);
+                let opacity_bytes = opacity.to_ne_bytes();
+                self.device.cmd_push_constants(
+                    secondary_command_buffer,
+                    self.data.pipeline_layout,
+                    vk::ShaderStageFlags::FRAGMENT,
+                    64,
+                    &opacity_bytes,
+                );
+                self.device.cmd_draw_indexed(
+                    secondary_command_buffer,
+                    mesh.index_count as u32,
+                    1,
+                    0,
+                    0,
+                    0,
+                );
+                index += 1;
+            }
         });
-        let mut index = 0;
-        for instance_position in &mesh.instances_positions {
-            let model = cgmath::Matrix4::from_translation(instance_position.to_vec())
-                * cgmath::Matrix4::from(rotation);
-            let model_bytes = unsafe {
-                std::slice::from_raw_parts(
-                    &model as *const cgmath::Matrix4<f32> as *const u8,
-                    std::mem::size_of::<cgmath::Matrix4<f32>>(),
-                )
-            };
-            self.device.cmd_push_constants(
-                secondary_command_buffer,
-                self.data.pipeline_layout,
-                vk::ShaderStageFlags::VERTEX,
-                0,
-                model_bytes,
-            );
-
-            let opacity = 1.0 - (index as f32 * 0.3);
-            let opacity_bytes = opacity.to_ne_bytes();
-            self.device.cmd_push_constants(
-                secondary_command_buffer,
-                self.data.pipeline_layout,
-                vk::ShaderStageFlags::FRAGMENT,
-                64,
-                &opacity_bytes,
-            );
-            self.device.cmd_draw_indexed(
-                secondary_command_buffer,
-                mesh.index_count as u32,
-                1,
-                0,
-                0,
-                0,
-            );
-            index += 1;
-        }
 
         self.device.end_command_buffer(secondary_command_buffer)?;
 

@@ -10,12 +10,14 @@ use crate::{app::AppData, model};
 #[derive(Debug)]
 pub(crate) struct Assets {
     pub(crate) meshes: HashMap<String, Mesh>,
+    pub(crate) active_mesh: Vec<String>,
     pub(crate) textures: HashMap<String, Texture>,
 }
 impl Default for Assets {
     fn default() -> Self {
         Self {
             meshes: HashMap::new(),
+            active_mesh: Vec::new(),
             textures: HashMap::new(),
         }
     }
