@@ -1,5 +1,6 @@
 use crate::{
     app::AppData,
+    camera::Camera,
     model::{self, Model},
     texture::{self, Texture},
 };
@@ -9,6 +10,8 @@ use vulkanalia::prelude::v1_0::*;
 
 #[derive(Debug)]
 pub(crate) struct Assets {
+    pub(crate) cameras: HashMap<String, Camera>,
+    pub(crate) active_camera: String,
     pub(crate) models: HashMap<String, Model>,
     pub(crate) active_models: Vec<String>,
     pub(crate) textures: HashMap<String, Texture>,
@@ -16,6 +19,8 @@ pub(crate) struct Assets {
 impl Default for Assets {
     fn default() -> Self {
         Self {
+            cameras: HashMap::new(),
+            active_camera: String::new(),
             models: HashMap::new(),
             active_models: Vec::new(),
             textures: HashMap::new(),

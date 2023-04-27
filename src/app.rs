@@ -1,4 +1,5 @@
 use crate::assets::Assets;
+use crate::camera::Camera;
 use crate::command_buffer::{create_command_buffers, create_command_pools};
 use crate::depth_object::create_depth_objects;
 use crate::descriptor_layout::create_descriptor_set_layout;
@@ -75,6 +76,11 @@ impl App {
             create_depth_objects(&app.instance, &app.device, &mut app.data)?;
             create_framebuffers(&app.device, &mut app.data)?;
 
+            app.assets
+                .cameras
+                .insert("main".to_owned(), Camera::default());
+            app.assets.active_camera = "main".to_owned();
+
             app.load_model("cube")?;
             app.load_model("viking_room")?;
 
@@ -84,7 +90,6 @@ impl App {
             app.load_texture("viking_room")?;
 
             // FIX active textures
-
             let texture = app
                 .assets
                 .textures
@@ -108,17 +113,24 @@ impl App {
         }
     }
 
-    fn load_model(&mut self, name: &str) -> Result<()> {
+    pub(crate) fn load_model(&mut self, name: &str) -> Result<()> {
         self.assets
             .load_model(name, &mut self.instance, &mut self.device, &mut self.data)
     }
 
-    fn load_texture(&mut self, name: &str) -> Result<()> {
+    pub(crate) fn load_texture(&mut self, name: &str) -> Result<()> {
         self.assets
             .load_texture(name, &mut self.instance, &mut self.device, &mut self.data)
     }
 
+    pub(crate) fn update(&mut self) -> Result<()> {
+        Ok(())
+    }
+
     pub(crate) unsafe fn render(&mut self, window: &Window) -> Result<()> {
+        // FIX run update() on separate thread
+        self.update()?;
+
         self.metrics.cycle.start_frame();
 
         // We wait for the fence of the current frame to finish executing. This is because we're going to re-use this frame's resources.
@@ -376,6 +388,9 @@ impl App {
                         64,
                         &opacity_bytes,
                     );
+                    // FIX
+                    // FIX ADD INSTANCE COUNT AND MOVE THE DRAW CALL OUTSIDE THE LOOP
+                    // FIX
                     self.device.cmd_draw_indexed(
                         secondary_command_buffer,
                         mesh.index_count as u32,
@@ -395,19 +410,16 @@ impl App {
     }
 
     unsafe fn update_uniform_buffer(&self, image_index: usize) -> Result<()> {
-        let view = <cgmath::Matrix4<f32>>::look_at_rh(
-            cgmath::Point3::new(6.0, 0.0, 2.0),
-            cgmath::Point3::new(0.0, 0.0, 0.0),
-            cgmath::Vector3::unit_z(),
-        );
+        let camera = &self
+            .assets
+            .cameras
+            .get(&self.assets.active_camera)
+            .expect("Camera not found");
 
-        let aspect_ratio =
-            self.data.swapchain_extent.width as f32 / self.data.swapchain_extent.height as f32;
-        let mut proj = cgmath::perspective(cgmath::Deg(45.0), aspect_ratio, 0.1, 10.0);
-
-        proj.y.y *= -1.0;
-
-        let ubo = UniformBufferObject { view, proj };
+        let ubo = UniformBufferObject {
+            view: camera.view,
+            proj: camera.projection,
+        };
 
         // OPTIMIZE use push constants
         let memory = self.device.map_memory(
