@@ -15,6 +15,7 @@ pub(crate) struct Camera {
     pub(crate) view_skybox: Matrix4<f32>,
 }
 
+#[allow(dead_code)]
 #[derive(Debug)]
 pub(crate) enum CameraProjectionKind {
     Perspective {
@@ -33,6 +34,7 @@ pub(crate) enum CameraProjectionKind {
     },
 }
 
+#[allow(dead_code)]
 impl Camera {
     pub(crate) fn orthographic() -> Self {
         let mut camera = Self::default();
