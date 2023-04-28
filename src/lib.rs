@@ -48,7 +48,6 @@ pub fn run(window_title: &str) -> Result<()> {
 
     #[cfg(debug_assertions)]
     {
-        shader::delete_compiled_shaders()?;
         shader::compile_shaders()?;
     }
 

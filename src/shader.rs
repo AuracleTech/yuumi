@@ -1,3 +1,5 @@
+use std::path::Path;
+
 use anyhow::{anyhow, Result};
 
 use vulkanalia::prelude::v1_0::*;
@@ -23,21 +25,22 @@ pub(crate) unsafe fn create_shader_module(
     Ok(device.create_shader_module(&info, None)?)
 }
 
-pub(crate) fn delete_compiled_shaders() -> Result<()> {
-    let files = std::fs::read_dir("lib")?;
-    for file in files {
-        let file = file?;
-        let path = file.path();
-        if let Some(ext) = path.extension() {
-            if ext == "spv" {
-                std::fs::remove_file(path)?;
+pub(crate) fn compile_shaders() -> Result<()> {
+    if Path::new("lib").exists() {
+        let files = std::fs::read_dir("lib")?;
+        for file in files {
+            let file = file?;
+            let path = file.path();
+            if let Some(ext) = path.extension() {
+                if ext == "spv" {
+                    std::fs::remove_file(path)?;
+                }
             }
         }
+    } else {
+        std::fs::create_dir("lib")?;
     }
-    Ok(())
-}
 
-pub(crate) fn compile_shaders() -> Result<()> {
     let output_vert = std::process::Command::new("glslc.exe")
         .arg("assets/shaders/shader.vert")
         .arg("-o")
@@ -53,11 +56,11 @@ pub(crate) fn compile_shaders() -> Result<()> {
         .expect("Failed to execute glslc.exe for fragment shader");
 
     if !(output_vert.status.success() && output_frag.status.success()) {
-        panic!(
+        Err(anyhow!(
             "Failed to compile shaders:\n{}\n{}",
             String::from_utf8_lossy(&output_vert.stderr),
             String::from_utf8_lossy(&output_frag.stderr)
-        );
+        ))?;
     }
 
     Ok(())
