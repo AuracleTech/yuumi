@@ -70,10 +70,11 @@ impl Camera {
                 self.projection = ortho(left, right, bottom, top, near, far);
             }
         }
-        // FIX might be necessary
+        // OPTIMIZE check if this is necessary
         self.projection[1][1] *= -1.0;
         self.view = Matrix4::from(self.quat.conjugate())
             * Matrix4::from_translation(self.pos.to_vec() * -1.0);
+        // OPTIMIZE it's possible to use the same view matrix for skybox and scene
         self.view_skybox = Matrix4::from(self.quat.conjugate());
     }
 
