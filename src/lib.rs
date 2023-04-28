@@ -60,6 +60,7 @@ pub fn run(window_title: &str) -> Result<()> {
         .build(&event_loop)?;
 
     // Center window
+
     let window_size = window.outer_size();
     let monitor_size = window
         .current_monitor()
@@ -78,7 +79,7 @@ pub fn run(window_title: &str) -> Result<()> {
     let mut camera_controller = CameraController {
         aim_sensitivity: 0.03,
         speed_factor: 4,
-        speed: 0.00,
+        speed: 1.00,
         yaw: 200.0,
         pitch: -20.0,
         mouse_pos_last_x: 0.0,
