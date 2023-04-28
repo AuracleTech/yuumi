@@ -18,6 +18,7 @@ mod msaa;
 mod physical_device;
 mod pipeline;
 mod render_pass;
+mod shader;
 mod single_time_cmd;
 mod swapchain;
 mod sync_object;
@@ -44,6 +45,12 @@ use winit::{
 
 pub fn run(window_title: &str) -> Result<()> {
     pretty_env_logger::init();
+
+    #[cfg(debug_assertions)]
+    {
+        shader::delete_compiled_shaders()?;
+        shader::compile_shaders()?;
+    }
 
     // Window
 
