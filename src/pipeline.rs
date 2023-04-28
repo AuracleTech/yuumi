@@ -1,9 +1,10 @@
-use anyhow::{anyhow, Result};
+use anyhow::Result;
 
 use vulkanalia::prelude::v1_0::*;
 use vulkanalia::Device;
 
 use crate::app::AppData;
+use crate::shader::create_shader_module;
 use crate::vertex::Vertex;
 
 pub(crate) unsafe fn create_pipeline(device: &Device, data: &mut AppData) -> Result<()> {
@@ -24,11 +25,8 @@ pub(crate) unsafe fn create_pipeline(device: &Device, data: &mut AppData) -> Res
         .push_constant_ranges(push_constant_ranges);
     data.pipeline_layout = device.create_pipeline_layout(&layout_info, None)?;
 
-    let vert = include_bytes!("../lib/vert.spv");
-    let frag = include_bytes!("../lib/frag.spv");
-
-    let vert_shader_module = create_shader_module(device, &vert[..])?;
-    let frag_shader_module = create_shader_module(device, &frag[..])?;
+    let vert_shader_module = create_shader_module(device, "vert".to_owned())?;
+    let frag_shader_module = create_shader_module(device, "frag".to_owned())?;
 
     let vert_stage = vk::PipelineShaderStageCreateInfo::builder()
         .stage(vk::ShaderStageFlags::VERTEX)
@@ -127,18 +125,4 @@ pub(crate) unsafe fn create_pipeline(device: &Device, data: &mut AppData) -> Res
     device.destroy_shader_module(frag_shader_module, None);
 
     Ok(())
-}
-
-unsafe fn create_shader_module(device: &Device, bytecode: &[u8]) -> Result<vk::ShaderModule> {
-    let bytecode = Vec::<u8>::from(bytecode);
-    let (prefix, code, suffix) = bytecode.align_to::<u32>();
-    if !prefix.is_empty() || !suffix.is_empty() {
-        return Err(anyhow!("Shader bytecode is not properly aligned."));
-    }
-
-    let info = vk::ShaderModuleCreateInfo::builder()
-        .code_size(bytecode.len())
-        .code(code);
-
-    Ok(device.create_shader_module(&info, None)?)
 }
