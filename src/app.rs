@@ -417,7 +417,7 @@ impl App {
             .expect("Camera not found");
 
         let ubo = UniformBufferObject {
-            view: camera.view,
+            view: camera.model_view,
             proj: camera.projection,
         };
 

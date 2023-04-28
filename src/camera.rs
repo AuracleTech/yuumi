@@ -12,7 +12,7 @@ pub(crate) struct Camera {
     pub(crate) projection: Matrix4<f32>,
     // OPTIMIZE one view instead of two
     pub(crate) view: Matrix4<f32>,
-    pub(crate) view_skybox: Matrix4<f32>,
+    pub(crate) model_view: Matrix4<f32>,
 }
 
 #[allow(dead_code)]
@@ -71,11 +71,10 @@ impl Camera {
             }
         }
         // OPTIMIZE check if this is necessary
-        self.projection[1][1] *= -1.0;
-        self.view = Matrix4::from(self.quat.conjugate())
-            * Matrix4::from_translation(self.pos.to_vec() * -1.0);
+        self.projection.y.y *= -1.0;
+        self.view = Matrix4::from(self.quat.conjugate());
+        self.model_view = self.view * Matrix4::from_translation(self.pos.to_vec() * -1.0);
         // OPTIMIZE it's possible to use the same view matrix for skybox and scene
-        self.view_skybox = Matrix4::from(self.quat.conjugate());
     }
 
     pub(crate) fn set_aspect_ratio(&mut self, aspect_ratio: f32) {
@@ -111,8 +110,8 @@ impl Default for Camera {
                 far: 100.0,
             },
             projection: Matrix4::identity(),
+            model_view: Matrix4::identity(),
             view: Matrix4::identity(),
-            view_skybox: Matrix4::identity(),
         };
         camera.update();
         camera
