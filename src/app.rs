@@ -1,3 +1,5 @@
+use std::sync::RwLock;
+
 use crate::assets::Assets;
 use crate::camera::Camera;
 use crate::command_buffer::{create_command_buffers, create_command_pools};
@@ -41,7 +43,7 @@ pub(crate) struct App {
     pub(crate) resized: bool,
     pub(crate) minimized: bool,
     pub(crate) metrics: Metrics,
-    pub(crate) assets: Assets,
+    pub(crate) assets: RwLock<Assets>,
 }
 
 impl App {
@@ -64,7 +66,7 @@ impl App {
                 resized: false,
                 minimized: false,
                 metrics: Metrics::default(),
-                assets: Assets::default(),
+                assets: RwLock::new(Assets::default()),
             };
             create_swapchain(&window, &app.instance, &app.device, &mut app.data)?;
             create_swapchain_image_views(&app.device, &mut app.data)?;
@@ -75,35 +77,44 @@ impl App {
             create_color_objects(&app.instance, &app.device, &mut app.data)?;
             create_depth_objects(&app.instance, &app.device, &mut app.data)?;
             create_framebuffers(&app.device, &mut app.data)?;
+            {
+                let mut assets = app.assets.write().expect("Failed to lock assets");
 
-            app.assets
-                .cameras
-                .insert("main".to_owned(), Camera::default());
-            app.assets.active_camera = "main".to_owned();
+                assets.cameras.insert("main".to_owned(), Camera::default());
+                assets.active_camera = "main".to_owned();
 
-            app.load_model("cube")?;
-            app.load_model("viking_room")?;
+                assets.load_model("cube", &mut app.instance, &mut app.device, &mut app.data)?;
+                assets.load_model(
+                    "viking_room",
+                    &mut app.instance,
+                    &mut app.device,
+                    &mut app.data,
+                )?;
 
-            app.assets.active_models.push("viking_room".to_string());
-            app.assets.active_models.push("cube".to_string());
+                assets.active_models.push("viking_room".to_string());
+                assets.active_models.push("cube".to_string());
 
-            app.load_texture("viking_room")?;
+                assets.load_texture(
+                    "viking_room",
+                    &mut app.instance,
+                    &mut app.device,
+                    &mut app.data,
+                )?;
 
-            // FIX active textures
-            let texture = app
-                .assets
-                .textures
-                .get("viking_room")
-                .expect("Texture not found");
-
-            create_uniform_buffers(&app.instance, &app.device, &mut app.data)?;
-            create_descriptor_pool(&app.device, &mut app.data)?;
-            create_descriptor_sets(
-                &app.device,
-                &mut app.data,
-                &texture.image_view,
-                &texture.sampler,
-            )?;
+                // FIX active textures
+                let texture = assets
+                    .textures
+                    .get("viking_room")
+                    .expect("Texture not found");
+                create_uniform_buffers(&app.instance, &app.device, &mut app.data)?;
+                create_descriptor_pool(&app.device, &mut app.data)?;
+                create_descriptor_sets(
+                    &app.device,
+                    &mut app.data,
+                    &texture.image_view,
+                    &texture.sampler,
+                )?;
+            }
             create_command_buffers(&app.device, &mut app.data)?;
             create_sync_objects(&app.device, &mut app.data)?;
 
@@ -111,16 +122,6 @@ impl App {
 
             Ok(app)
         }
-    }
-
-    pub(crate) fn load_model(&mut self, name: &str) -> Result<()> {
-        self.assets
-            .load_model(name, &mut self.instance, &mut self.device, &mut self.data)
-    }
-
-    pub(crate) fn load_texture(&mut self, name: &str) -> Result<()> {
-        self.assets
-            .load_texture(name, &mut self.instance, &mut self.device, &mut self.data)
     }
 
     pub(crate) fn update(&mut self) -> Result<()> {
@@ -329,8 +330,10 @@ impl App {
         );
 
         // Iterate through the meshes
-        self.assets.active_models.iter().for_each(|name| {
-            let model = &self.assets.models.get(name).expect("Mesh not found");
+        let assets = self.assets.read().expect("Failed to lock assets");
+
+        assets.active_models.iter().for_each(|name| {
+            let model = assets.models.get(name).expect("Mesh not found");
             for mesh in &model.meshes {
                 self.device.cmd_bind_vertex_buffers(
                     secondary_command_buffer,
@@ -410,10 +413,11 @@ impl App {
     }
 
     unsafe fn update_uniform_buffer(&self, image_index: usize) -> Result<()> {
-        let camera = &self
-            .assets
+        let assets = self.assets.read().expect("Failed to lock assets");
+
+        let camera = assets
             .cameras
-            .get(&self.assets.active_camera)
+            .get(&assets.active_camera)
             .expect("Camera not found");
 
         let ubo = UniformBufferObject {
@@ -451,8 +455,9 @@ impl App {
         create_uniform_buffers(&self.instance, &self.device, &mut self.data)?;
         create_descriptor_pool(&self.device, &mut self.data)?;
 
-        let texture = self
-            .assets
+        let assets = self.assets.read().expect("Failed to lock assets");
+
+        let texture = assets
             .textures
             .get("viking_room")
             .expect("Texture not found");
@@ -514,7 +519,9 @@ impl Drop for App {
                 .iter()
                 .for_each(|p| self.device.destroy_command_pool(*p, None));
 
-            self.assets.textures.iter().for_each(|(_, texture)| {
+            let assets = self.assets.read().expect("Failed to lock assets");
+
+            assets.textures.iter().for_each(|(_, texture)| {
                 self.device.destroy_image(texture.image, None);
                 self.device.free_memory(texture.image_memory, None);
 
@@ -527,7 +534,7 @@ impl Drop for App {
             self.device
                 .destroy_descriptor_set_layout(self.data.descriptor_set_layout, None);
 
-            self.assets.models.iter().for_each(|(_, model)| {
+            assets.models.iter().for_each(|(_, model)| {
                 for mesh in &model.meshes {
                     self.device.destroy_buffer(mesh.vertex_buffer, None);
                     self.device.free_memory(mesh.vertex_buffer_memory, None);

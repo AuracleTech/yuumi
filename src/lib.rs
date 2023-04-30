@@ -9,6 +9,7 @@ mod descriptor_pool;
 mod framebuffer;
 mod generate_mipmaps;
 mod image_view;
+mod input;
 mod instance;
 mod logical_device;
 mod mesh;
@@ -38,7 +39,7 @@ use cgmath::{Deg, Quaternion, Rotation3, Vector3};
 use vulkanalia::vk::DeviceV1_0;
 use winit::{
     dpi::{LogicalSize, PhysicalPosition},
-    event::{ElementState, Event, VirtualKeyCode, WindowEvent},
+    event::{ElementState, Event, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
     window::{CursorGrabMode, WindowBuilder},
 };
@@ -71,7 +72,6 @@ pub fn run(window_title: &str) -> Result<()> {
     window.set_outer_position(PhysicalPosition::new(x, y));
 
     // App
-
     let mut app = App::new(&window)?;
 
     // Assets
@@ -93,18 +93,67 @@ pub fn run(window_title: &str) -> Result<()> {
     window.set_cursor_visible(false);
 
     // Set the initial cursor position to the center of the window
-    let mut cursor_position = PhysicalPosition::new(
+    let cursor_position = PhysicalPosition::new(
         window.inner_size().width as f64 / 2.0,
         window.inner_size().height as f64 / 2.0,
     );
 
+    let (sender, receiver) = std::sync::mpsc::channel::<Event<()>>();
+
+    std::thread::spawn(move || loop {
+        let event = receiver.recv().unwrap();
+        match event {
+            Event::WindowEvent {
+                event: WindowEvent::KeyboardInput { input, .. },
+                ..
+            } => {
+                println!("Key pressed: {:?}", input);
+            }
+            _ => {}
+        }
+    });
+
+    // let (sender, receiver): (Sender<GameEvent>, Receiver<GameEvent>) = channel();
+
+    // thread::spawn(move || {
+    //     while let Ok(event) = receiver.recv() {
+    //         match event {
+    //             GameEvent::MouseMoved { x, y } => {
+    //                 let mut assets = app.assets.write().expect("Failed to lock assets");
+    // let camera = assets
+    // .cameras
+    // .get_mut("main")
+    // .expect("Failed to get camera");
+
+    //                 let mouse_x_delta = x - cursor_position.x;
+    //                 let mouse_y_delta = y - cursor_position.y;
+    //                 camera_controller.mouse_pos_last_x = x;
+    //                 camera_controller.mouse_pos_last_y = y;
+
+    //                 camera_controller.yaw -=
+    //                     mouse_x_delta as f32 * camera_controller.aim_sensitivity;
+    //                 camera_controller.pitch -=
+    //                     mouse_y_delta as f32 * camera_controller.aim_sensitivity;
+
+    //                 camera_controller.pitch = camera_controller.pitch.clamp(-89.9, 89.9);
+    //                 camera_controller.yaw = camera_controller.yaw.rem_euclid(360.0);
+
+    //                 let quat_yaw =
+    //                     Quaternion::from_axis_angle(Vector3::unit_y(), Deg(camera_controller.yaw));
+    //                 let quat_pitch = Quaternion::from_axis_angle(
+    //                     Vector3::unit_x(),
+    //                     Deg(camera_controller.pitch),
+    //                 );
+    //                 camera.quat = quat_yaw * quat_pitch;
+    //                 camera.update(); // OPTIMIZE stack up all updates and update only once at end of update loop, maybe use boolean or sum
+    //             }
+    //             _ => {}
+    //         }
+    //     }
+    // });
+
     event_loop.run(move |event, _, control_flow| {
         *control_flow = ControlFlow::Poll;
-        let camera = app
-            .assets
-            .cameras
-            .get_mut("main")
-            .expect("Failed to get camera");
         match event {
             Event::MainEventsCleared if !app.destroying && !app.minimized => {
                 unsafe { app.render(&window) }.expect("Failed to render");
@@ -127,6 +176,11 @@ pub fn run(window_title: &str) -> Result<()> {
                 }
                 // Update camera aspect ratio
                 let window_inner_size = window.inner_size();
+                let mut assets = app.assets.write().expect("Failed to lock assets");
+                let camera = assets
+                    .cameras
+                    .get_mut("main")
+                    .expect("Failed to get camera");
                 camera.set_aspect_ratio(
                     window_inner_size.width as f32 / window_inner_size.height as f32,
                 );
@@ -137,6 +191,27 @@ pub fn run(window_title: &str) -> Result<()> {
                 event: WindowEvent::CursorMoved { position, .. },
                 ..
             } => {
+                // Set the new cursor position to the center of the window
+                window
+                    .set_cursor_position(PhysicalPosition::new(
+                        window.inner_size().width as f64 / 2.0,
+                        window.inner_size().height as f64 / 2.0,
+                    ))
+                    .expect("Failed to set cursor position");
+
+                // sender
+                //     .send(GameEvent::MouseMoved {
+                //         x: position.x,
+                //         y: position.y,
+                //     })
+                //     .expect("Failed to send event");
+
+                let mut assets = app.assets.write().expect("Failed to lock assets");
+                let camera = assets
+                    .cameras
+                    .get_mut("main")
+                    .expect("Failed to get camera");
+
                 let mouse_x_delta = position.x - cursor_position.x;
                 let mouse_y_delta = position.y - cursor_position.y;
                 camera_controller.mouse_pos_last_x = position.x;
@@ -154,15 +229,6 @@ pub fn run(window_title: &str) -> Result<()> {
                     Quaternion::from_axis_angle(Vector3::unit_x(), Deg(camera_controller.pitch));
                 camera.quat = quat_yaw * quat_pitch;
                 camera.update(); // OPTIMIZE stack up all updates and update only once at end of update loop, maybe use boolean or sum
-
-                // Set the new cursor position to the center of the window
-                cursor_position = PhysicalPosition::new(
-                    window.inner_size().width as f64 / 2.0,
-                    window.inner_size().height as f64 / 2.0,
-                );
-                window
-                    .set_cursor_position(cursor_position)
-                    .expect("Failed to set cursor position");
             }
 
             // Mouse scroll change FOV
@@ -171,6 +237,11 @@ pub fn run(window_title: &str) -> Result<()> {
                 ..
             } => {
                 if phase == winit::event::TouchPhase::Moved {
+                    let mut assets = app.assets.write().expect("Failed to lock assets");
+                    let camera = assets
+                        .cameras
+                        .get_mut("main")
+                        .expect("Failed to get camera");
                     match camera.projection_kind {
                         CameraProjectionKind::Perspective {
                             aspect_ratio,
@@ -201,55 +272,24 @@ pub fn run(window_title: &str) -> Result<()> {
             }
 
             Event::WindowEvent {
-                event: WindowEvent::KeyboardInput { input, .. },
+                event:
+                    WindowEvent::KeyboardInput {
+                        input,
+                        device_id,
+                        is_synthetic,
+                    },
                 ..
             } => {
-                if input.state == ElementState::Pressed {
-                    match input.virtual_keycode {
-                        Some(VirtualKeyCode::W) => {
-                            let forward = camera.quat * Vector3::unit_z();
-                            camera.pos -= forward * camera_controller.speed;
-                            camera.update();
-                        }
-                        Some(VirtualKeyCode::S) => {
-                            let forward = camera.quat * Vector3::unit_z();
-                            camera.pos += forward * camera_controller.speed;
-                            camera.update();
-                        }
-                        Some(VirtualKeyCode::A) => {
-                            let right = camera.quat * Vector3::unit_x();
-                            camera.pos -= right * camera_controller.speed;
-                            camera.update();
-                        }
-                        Some(VirtualKeyCode::D) => {
-                            let right = camera.quat * Vector3::unit_x();
-                            camera.pos += right * camera_controller.speed;
-                            camera.update();
-                        }
-                        Some(VirtualKeyCode::Space) => {
-                            let up = camera.quat * Vector3::unit_y();
-                            camera.pos += up * camera_controller.speed;
-                            camera.update();
-                        }
-                        Some(VirtualKeyCode::Escape) => {
-                            destroy(&mut app, control_flow);
-                        }
-                        Some(VirtualKeyCode::LControl) => {
-                            let up = camera.quat * Vector3::unit_y();
-                            camera.pos -= up * camera_controller.speed;
-                            camera.update();
-                        }
-                        Some(VirtualKeyCode::LShift) => {
-                            camera_controller.speed_factor = match camera_controller.speed_factor {
-                                4 => 8,
-                                8 => 24,
-                                24 => 4,
-                                _ => 4,
-                            };
-                        }
-                        _ => {}
-                    }
-                }
+                sender
+                    .send(Event::WindowEvent {
+                        window_id: window.id(),
+                        event: WindowEvent::KeyboardInput {
+                            input,
+                            device_id,
+                            is_synthetic,
+                        },
+                    })
+                    .expect("Failed to send event to input thread");
             }
             _ => {}
         }
