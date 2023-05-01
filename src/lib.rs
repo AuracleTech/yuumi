@@ -101,7 +101,7 @@ pub fn run(window_title: &str) -> Result<()> {
     let (sender, receiver) = std::sync::mpsc::channel::<Event<()>>();
 
     let assets_arc = Arc::clone(&app.assets);
-    std::thread::spawn(move || loop {
+    let handle = std::thread::spawn(move || loop {
         let event = receiver.recv().unwrap();
         match event {
             Event::WindowEvent { event, .. } => match event {
@@ -186,6 +186,8 @@ pub fn run(window_title: &str) -> Result<()> {
             _ => (),
         }
     });
+
+    handle.join().expect("Failed to join thread");
 
     event_loop.run(move |event, _, control_flow| {
         *control_flow = ControlFlow::Poll;

@@ -1,5 +1,3 @@
-use std::sync::{Arc, RwLock};
-
 use crate::assets::Assets;
 use crate::camera::Camera;
 use crate::command_buffer::{create_command_buffers, create_command_pools};
@@ -20,6 +18,7 @@ use crate::sync_object::create_sync_objects;
 use crate::uniform_buffer::{create_uniform_buffers, UniformBufferObject};
 use anyhow::{anyhow, Result};
 use cgmath::EuclideanSpace;
+use std::sync::{Arc, RwLock};
 use vulkanalia::loader::{LibloadingLoader, LIBRARY};
 use vulkanalia::prelude::v1_0::*;
 use vulkanalia::vk::{ExtDebugUtilsExtension, KhrSurfaceExtension, KhrSwapchainExtension};
