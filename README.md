@@ -47,6 +47,7 @@
 - [x] Bikeshedding
 - [x] Loading Mesh
 - [x] Loading Model
+- [x] Input Multithreading
 - [ ] Ambient Lighting
 - [ ] Diffuse Lighting
 - [ ] Specular Lighting
