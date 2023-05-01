@@ -9,7 +9,6 @@ mod descriptor_pool;
 mod framebuffer;
 mod generate_mipmaps;
 mod image_view;
-mod input;
 mod instance;
 mod logical_device;
 mod mesh;
@@ -36,10 +35,11 @@ use app::App;
 use camera::CameraProjectionKind;
 use camera_controller::CameraController;
 use cgmath::{Deg, Quaternion, Rotation3, Vector3};
+use std::sync::Arc;
 use vulkanalia::vk::DeviceV1_0;
 use winit::{
     dpi::{LogicalSize, PhysicalPosition},
-    event::{ElementState, Event, WindowEvent},
+    event::{ElementState, Event, VirtualKeyCode, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
     window::{CursorGrabMode, WindowBuilder},
 };
@@ -100,16 +100,90 @@ pub fn run(window_title: &str) -> Result<()> {
 
     let (sender, receiver) = std::sync::mpsc::channel::<Event<()>>();
 
+    let assets_arc = Arc::clone(&app.assets);
     std::thread::spawn(move || loop {
         let event = receiver.recv().unwrap();
         match event {
-            Event::WindowEvent {
-                event: WindowEvent::KeyboardInput { input, .. },
-                ..
-            } => {
-                println!("Key pressed: {:?}", input);
-            }
-            _ => {}
+            Event::WindowEvent { event, .. } => match event {
+                WindowEvent::KeyboardInput { input, .. } => {
+                    if input.state == ElementState::Pressed {
+                        match input.virtual_keycode {
+                            Some(VirtualKeyCode::W) => {
+                                let mut assets = assets_arc.write().expect("Failed to lock assets");
+                                let camera = assets
+                                    .cameras
+                                    .get_mut("main")
+                                    .expect("Failed to get camera");
+                                let forward = camera.quat * Vector3::unit_z();
+                                camera.pos -= forward * camera_controller.speed;
+                                camera.update();
+                            }
+                            Some(VirtualKeyCode::S) => {
+                                let mut assets = assets_arc.write().expect("Failed to lock assets");
+                                let camera = assets
+                                    .cameras
+                                    .get_mut("main")
+                                    .expect("Failed to get camera");
+                                let forward = camera.quat * Vector3::unit_z();
+                                camera.pos += forward * camera_controller.speed;
+                                camera.update();
+                            }
+                            Some(VirtualKeyCode::A) => {
+                                let mut assets = assets_arc.write().expect("Failed to lock assets");
+                                let camera = assets
+                                    .cameras
+                                    .get_mut("main")
+                                    .expect("Failed to get camera");
+                                let right = camera.quat * Vector3::unit_x();
+                                camera.pos -= right * camera_controller.speed;
+                                camera.update();
+                            }
+                            Some(VirtualKeyCode::D) => {
+                                let mut assets = assets_arc.write().expect("Failed to lock assets");
+                                let camera = assets
+                                    .cameras
+                                    .get_mut("main")
+                                    .expect("Failed to get camera");
+                                let right = camera.quat * Vector3::unit_x();
+                                camera.pos += right * camera_controller.speed;
+                                camera.update();
+                            }
+                            Some(VirtualKeyCode::Space) => {
+                                let mut assets = assets_arc.write().expect("Failed to lock assets");
+                                let camera = assets
+                                    .cameras
+                                    .get_mut("main")
+                                    .expect("Failed to get camera");
+                                let up = camera.quat * Vector3::unit_y();
+                                camera.pos += up * camera_controller.speed;
+                                camera.update();
+                            }
+                            Some(VirtualKeyCode::LControl) => {
+                                let mut assets = assets_arc.write().expect("Failed to lock assets");
+                                let camera = assets
+                                    .cameras
+                                    .get_mut("main")
+                                    .expect("Failed to get camera");
+                                let up = camera.quat * Vector3::unit_y();
+                                camera.pos -= up * camera_controller.speed;
+                                camera.update();
+                            }
+                            Some(VirtualKeyCode::LShift) => {
+                                camera_controller.speed_factor =
+                                    match camera_controller.speed_factor {
+                                        4 => 8,
+                                        8 => 24,
+                                        24 => 4,
+                                        _ => 4,
+                                    };
+                            }
+                            _ => {}
+                        }
+                    }
+                }
+                _ => (),
+            },
+            _ => (),
         }
     });
 
@@ -290,6 +364,13 @@ pub fn run(window_title: &str) -> Result<()> {
                         },
                     })
                     .expect("Failed to send event to input thread");
+
+                match input.virtual_keycode {
+                    Some(VirtualKeyCode::Escape) => {
+                        destroy(&mut app, control_flow);
+                    }
+                    _ => {}
+                }
             }
             _ => {}
         }

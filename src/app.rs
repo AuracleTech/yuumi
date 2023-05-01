@@ -1,4 +1,4 @@
-use std::sync::RwLock;
+use std::sync::{Arc, RwLock};
 
 use crate::assets::Assets;
 use crate::camera::Camera;
@@ -43,7 +43,7 @@ pub(crate) struct App {
     pub(crate) resized: bool,
     pub(crate) minimized: bool,
     pub(crate) metrics: Metrics,
-    pub(crate) assets: RwLock<Assets>,
+    pub(crate) assets: Arc<RwLock<Assets>>,
 }
 
 impl App {
@@ -66,7 +66,7 @@ impl App {
                 resized: false,
                 minimized: false,
                 metrics: Metrics::default(),
-                assets: RwLock::new(Assets::default()),
+                assets: Arc::new(RwLock::new(Assets::default())),
             };
             create_swapchain(&window, &app.instance, &app.device, &mut app.data)?;
             create_swapchain_image_views(&app.device, &mut app.data)?;
