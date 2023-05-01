@@ -187,45 +187,6 @@ pub fn run(window_title: &str) -> Result<()> {
         }
     });
 
-    // let (sender, receiver): (Sender<GameEvent>, Receiver<GameEvent>) = channel();
-
-    // thread::spawn(move || {
-    //     while let Ok(event) = receiver.recv() {
-    //         match event {
-    //             GameEvent::MouseMoved { x, y } => {
-    //                 let mut assets = app.assets.write().expect("Failed to lock assets");
-    // let camera = assets
-    // .cameras
-    // .get_mut("main")
-    // .expect("Failed to get camera");
-
-    //                 let mouse_x_delta = x - cursor_position.x;
-    //                 let mouse_y_delta = y - cursor_position.y;
-    //                 camera_controller.mouse_pos_last_x = x;
-    //                 camera_controller.mouse_pos_last_y = y;
-
-    //                 camera_controller.yaw -=
-    //                     mouse_x_delta as f32 * camera_controller.aim_sensitivity;
-    //                 camera_controller.pitch -=
-    //                     mouse_y_delta as f32 * camera_controller.aim_sensitivity;
-
-    //                 camera_controller.pitch = camera_controller.pitch.clamp(-89.9, 89.9);
-    //                 camera_controller.yaw = camera_controller.yaw.rem_euclid(360.0);
-
-    //                 let quat_yaw =
-    //                     Quaternion::from_axis_angle(Vector3::unit_y(), Deg(camera_controller.yaw));
-    //                 let quat_pitch = Quaternion::from_axis_angle(
-    //                     Vector3::unit_x(),
-    //                     Deg(camera_controller.pitch),
-    //                 );
-    //                 camera.quat = quat_yaw * quat_pitch;
-    //                 camera.update(); // OPTIMIZE stack up all updates and update only once at end of update loop, maybe use boolean or sum
-    //             }
-    //             _ => {}
-    //         }
-    //     }
-    // });
-
     event_loop.run(move |event, _, control_flow| {
         *control_flow = ControlFlow::Poll;
         match event {
@@ -272,13 +233,6 @@ pub fn run(window_title: &str) -> Result<()> {
                         window.inner_size().height as f64 / 2.0,
                     ))
                     .expect("Failed to set cursor position");
-
-                // sender
-                //     .send(GameEvent::MouseMoved {
-                //         x: position.x,
-                //         y: position.y,
-                //     })
-                //     .expect("Failed to send event");
 
                 let mut assets = app.assets.write().expect("Failed to lock assets");
                 let camera = assets
