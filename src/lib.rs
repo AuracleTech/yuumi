@@ -10,6 +10,7 @@ mod framebuffer;
 mod generate_mipmaps;
 mod image_view;
 mod instance;
+mod instance_buffer;
 mod logical_device;
 mod mesh;
 mod metrics;

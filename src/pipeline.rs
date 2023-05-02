@@ -5,7 +5,7 @@ use vulkanalia::Device;
 
 use crate::app::AppData;
 use crate::shader::create_shader_module;
-use crate::vertex::Vertex;
+use crate::vertex::{InstanceData, Vertex};
 
 pub(crate) unsafe fn create_pipeline(device: &Device, data: &mut AppData) -> Result<()> {
     let vert_push_constant_range = vk::PushConstantRange::builder()
@@ -38,8 +38,13 @@ pub(crate) unsafe fn create_pipeline(device: &Device, data: &mut AppData) -> Res
         .module(frag_shader_module)
         .name(b"main\0");
 
-    let binding_descriptions = &[Vertex::binding_description()];
-    let attribute_descriptions = Vertex::attribute_descriptions();
+    let binding_descriptions = &[
+        Vertex::binding_description(),
+        InstanceData::binding_description(),
+    ];
+    let mut attribute_descriptions: Vec<vk::VertexInputAttributeDescription> = Vec::new();
+    attribute_descriptions.extend(&Vertex::attribute_descriptions());
+    attribute_descriptions.extend(&InstanceData::attribute_descriptions());
     let vertex_input_state = vk::PipelineVertexInputStateCreateInfo::builder()
         .vertex_binding_descriptions(binding_descriptions)
         .vertex_attribute_descriptions(&attribute_descriptions);

@@ -80,7 +80,6 @@ pub(crate) unsafe fn create_index_buffer(
     )?;
 
     copy_buffer(device, data, staging_buffer, index_buffer, size)?;
-
     device.destroy_buffer(staging_buffer, None);
     device.free_memory(staging_buffer_memory, None);
 
@@ -138,7 +137,7 @@ pub(crate) unsafe fn create_buffer(
     Ok((buffer, buffer_memory))
 }
 
-unsafe fn copy_buffer(
+pub(crate) unsafe fn copy_buffer(
     device: &Device,
     data: &AppData,
     source: vk::Buffer,

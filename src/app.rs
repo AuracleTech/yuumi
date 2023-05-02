@@ -17,7 +17,7 @@ use crate::swapchain::create_swapchain;
 use crate::sync_object::create_sync_objects;
 use crate::uniform_buffer::{create_uniform_buffers, UniformBufferObject};
 use anyhow::{anyhow, Result};
-use cgmath::EuclideanSpace;
+use cgmath::SquareMatrix;
 use std::sync::{Arc, RwLock};
 use vulkanalia::loader::{LibloadingLoader, LIBRARY};
 use vulkanalia::prelude::v1_0::*;
@@ -340,6 +340,12 @@ impl App {
                     &[mesh.vertex_buffer],
                     &[0],
                 );
+                self.device.cmd_bind_vertex_buffers(
+                    secondary_command_buffer,
+                    1,
+                    &[mesh.instance_buffer],
+                    &[0],
+                );
                 self.device.cmd_bind_index_buffer(
                     secondary_command_buffer,
                     mesh.index_buffer,
@@ -363,46 +369,40 @@ impl App {
                     y: cgmath::Deg(0.0),
                     z: cgmath::Deg(time * 5.0),
                 });
-                let mut index = 0;
-                for instance_position in &mesh.instances_positions {
-                    let model = cgmath::Matrix4::from_translation(instance_position.to_vec())
-                        * cgmath::Matrix4::from(rotation);
-                    let model_bytes = unsafe {
-                        std::slice::from_raw_parts(
-                            &model as *const cgmath::Matrix4<f32> as *const u8,
-                            std::mem::size_of::<cgmath::Matrix4<f32>>(),
-                        )
-                    };
-                    self.device.cmd_push_constants(
-                        secondary_command_buffer,
-                        self.data.pipeline_layout,
-                        vk::ShaderStageFlags::VERTEX,
-                        0,
-                        model_bytes,
-                    );
 
-                    let opacity = 1.0 - (index as f32 * 0.3);
-                    let opacity_bytes = opacity.to_ne_bytes();
-                    self.device.cmd_push_constants(
-                        secondary_command_buffer,
-                        self.data.pipeline_layout,
-                        vk::ShaderStageFlags::FRAGMENT,
-                        64,
-                        &opacity_bytes,
-                    );
-                    // FIX
-                    // FIX ADD INSTANCE COUNT AND MOVE THE DRAW CALL OUTSIDE THE LOOP
-                    // FIX
-                    self.device.cmd_draw_indexed(
-                        secondary_command_buffer,
-                        mesh.index_count as u32,
-                        1,
-                        0,
-                        0,
-                        0,
-                    );
-                    index += 1;
-                }
+                let model = cgmath::Matrix4::identity() * cgmath::Matrix4::from(rotation);
+                let model_bytes = unsafe {
+                    std::slice::from_raw_parts(
+                        &model as *const cgmath::Matrix4<f32> as *const u8,
+                        std::mem::size_of::<cgmath::Matrix4<f32>>(),
+                    )
+                };
+                self.device.cmd_push_constants(
+                    secondary_command_buffer,
+                    self.data.pipeline_layout,
+                    vk::ShaderStageFlags::VERTEX,
+                    0,
+                    model_bytes,
+                );
+
+                let opacity = 1.0 - (3 as f32 * 0.3);
+                let opacity_bytes = opacity.to_ne_bytes();
+                self.device.cmd_push_constants(
+                    secondary_command_buffer,
+                    self.data.pipeline_layout,
+                    vk::ShaderStageFlags::FRAGMENT,
+                    64,
+                    &opacity_bytes,
+                );
+
+                self.device.cmd_draw_indexed(
+                    secondary_command_buffer,
+                    mesh.index_count,
+                    mesh.instance_count,
+                    0,
+                    0,
+                    0,
+                );
             }
         });
 
@@ -539,6 +539,8 @@ impl Drop for App {
                     self.device.free_memory(mesh.vertex_buffer_memory, None);
                     self.device.destroy_buffer(mesh.index_buffer, None);
                     self.device.free_memory(mesh.index_buffer_memory, None);
+                    self.device.destroy_buffer(mesh.instance_buffer, None);
+                    self.device.free_memory(mesh.instance_buffer_memory, None);
                 }
             });
 

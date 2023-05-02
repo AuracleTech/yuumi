@@ -43,7 +43,8 @@ impl Vertex {
             .build()
     }
 
-    pub(crate) fn attribute_descriptions() -> [vk::VertexInputAttributeDescription; 3] {
+    pub(crate) fn attribute_descriptions() -> Vec<vk::VertexInputAttributeDescription> {
+        let pos_size = std::mem::size_of::<cgmath::Vector3<f32>>();
         let pos = vk::VertexInputAttributeDescription::builder()
             .binding(0)
             .location(0)
@@ -51,22 +52,74 @@ impl Vertex {
             .offset(0)
             .build();
 
-        let color_offset = std::mem::size_of::<cgmath::Vector3<f32>>() as u32;
+        let color_size = std::mem::size_of::<cgmath::Vector3<f32>>();
         let color = vk::VertexInputAttributeDescription::builder()
             .binding(0)
             .location(1)
             .format(vk::Format::R32G32B32_SFLOAT)
-            .offset(color_offset)
+            .offset(pos_size as u32)
             .build();
 
-        let tex_coord_offset = color_offset + std::mem::size_of::<cgmath::Vector3<f32>>() as u32;
+        let _tex_coord_size = std::mem::size_of::<cgmath::Vector2<f32>>();
         let tex_coord = vk::VertexInputAttributeDescription::builder()
             .binding(0)
             .location(2)
             .format(vk::Format::R32G32_SFLOAT)
-            .offset(tex_coord_offset)
+            .offset((pos_size + color_size) as u32)
             .build();
 
-        [pos, color, tex_coord]
+        vec![pos, color, tex_coord]
+    }
+}
+
+#[repr(C)]
+pub struct InstanceData {
+    pub model_matrix: Vec<cgmath::Matrix4<f32>>,
+}
+
+impl InstanceData {
+    pub(crate) fn binding_description() -> vk::VertexInputBindingDescription {
+        vk::VertexInputBindingDescription::builder()
+            .binding(1)
+            .stride(std::mem::size_of::<cgmath::Matrix4<f32>>() as u32)
+            .input_rate(vk::VertexInputRate::INSTANCE)
+            .build()
+    }
+
+    pub(crate) fn attribute_descriptions() -> Vec<vk::VertexInputAttributeDescription> {
+        let instance_transform0 = vk::VertexInputAttributeDescription::builder()
+            .binding(1)
+            .location(3)
+            .format(vk::Format::R32G32B32A32_SFLOAT)
+            .offset(0)
+            .build();
+
+        let instance_transform1 = vk::VertexInputAttributeDescription::builder()
+            .binding(1)
+            .location(4)
+            .format(vk::Format::R32G32B32A32_SFLOAT)
+            .offset(16)
+            .build();
+
+        let instance_transform2 = vk::VertexInputAttributeDescription::builder()
+            .binding(1)
+            .location(5)
+            .format(vk::Format::R32G32B32A32_SFLOAT)
+            .offset(32)
+            .build();
+
+        let instance_transform3 = vk::VertexInputAttributeDescription::builder()
+            .binding(1)
+            .location(6)
+            .format(vk::Format::R32G32B32A32_SFLOAT)
+            .offset(48)
+            .build();
+
+        vec![
+            instance_transform0,
+            instance_transform1,
+            instance_transform2,
+            instance_transform3,
+        ]
     }
 }

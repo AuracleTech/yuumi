@@ -1,7 +1,8 @@
 use crate::{
     app::AppData,
+    instance_buffer::create_instance_buffer,
     mesh::{Mesh, SerializedMesh},
-    vertex::Vertex,
+    vertex::{InstanceData, Vertex},
     vertex_buffer::{create_index_buffer, create_vertex_buffer},
 };
 use anyhow::{anyhow, Result};
@@ -57,26 +58,32 @@ pub(crate) fn load_model(
     let mut model = Model { meshes: vec![] };
 
     for mesh in serialized.meshes {
+        // FIX starts without instances
+        let instance_data = InstanceData {
+            model_matrix: vec![
+                cgmath::Matrix4::from_translation(cgmath::Vector3::new(0.0, -1.25, 1.0)),
+                cgmath::Matrix4::from_translation(cgmath::Vector3::new(0.0, 1.25, 1.0)),
+                cgmath::Matrix4::from_translation(cgmath::Vector3::new(0.0, -1.25, -1.0)),
+                cgmath::Matrix4::from_translation(cgmath::Vector3::new(0.0, 1.25, -1.0)),
+            ],
+        };
+
         let (vertex_buffer, vertex_buffer_memory) =
             unsafe { create_vertex_buffer(&mesh.vertices, instance, device, data)? };
         let (index_buffer, index_buffer_memory) =
             unsafe { create_index_buffer(&mesh.indices, instance, device, data)? };
-
-        // FIX starts without instances
-        let instances_positions = vec![
-            cgmath::Point3::new(0.0, -1.25, 1.0),
-            cgmath::Point3::new(0.0, 1.25, 1.0),
-            cgmath::Point3::new(0.0, -1.25, -1.0),
-            cgmath::Point3::new(0.0, 1.25, -1.0),
-        ];
+        let (instance_buffer, instance_buffer_memory) =
+            unsafe { create_instance_buffer(&instance_data, instance, device, data)? };
 
         model.meshes.push(Mesh {
             vertex_buffer,
             vertex_buffer_memory,
+            index_count: mesh.indices.len() as u32,
             index_buffer,
             index_buffer_memory,
-            instances_positions,
-            index_count: mesh.indices.len() as u32,
+            instance_count: instance_data.model_matrix.len() as u32,
+            instance_buffer,
+            instance_buffer_memory,
         });
     }
 
