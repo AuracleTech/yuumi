@@ -5,10 +5,10 @@ use cgmath::{
 use crate::types::Position;
 
 #[derive(Debug)]
-pub(crate) struct Camera {
-    pub(crate) pos: Position,
-    pub(crate) quat: Quaternion<f32>,
-    pub(crate) projection_kind: CameraProjectionKind,
+pub struct Camera {
+    pub pos: Position,
+    pub quat: Quaternion<f32>,
+    pub projection_kind: CameraProjectionKind,
     pub(crate) projection: Matrix4<f32>,
     // OPTIMIZE one view instead of two
     pub(crate) view: Matrix4<f32>,
@@ -17,7 +17,7 @@ pub(crate) struct Camera {
 
 #[allow(dead_code)]
 #[derive(Debug)]
-pub(crate) enum CameraProjectionKind {
+pub enum CameraProjectionKind {
     Perspective {
         aspect_ratio: f32,
         near: f32,
@@ -49,7 +49,7 @@ impl Camera {
         camera
     }
 
-    pub(crate) fn update(&mut self) {
+    pub fn update(&mut self) {
         match self.projection_kind {
             CameraProjectionKind::Perspective {
                 aspect_ratio,
@@ -77,7 +77,7 @@ impl Camera {
         // OPTIMIZE it's possible to use the same view matrix for skybox and scene
     }
 
-    pub(crate) fn set_aspect_ratio(&mut self, aspect_ratio: f32) {
+    pub fn set_aspect_ratio(&mut self, aspect_ratio: f32) {
         match self.projection_kind {
             CameraProjectionKind::Perspective {
                 aspect_ratio: _,

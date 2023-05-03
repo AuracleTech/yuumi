@@ -9,8 +9,8 @@ use std::collections::HashMap;
 use vulkanalia::prelude::v1_0::*;
 
 #[derive(Debug)]
-pub(crate) struct Assets {
-    pub(crate) cameras: HashMap<String, Camera>,
+pub struct Assets {
+    pub cameras: HashMap<String, Camera>,
     pub(crate) active_camera: String,
     pub(crate) models: HashMap<String, Model>,
     pub(crate) active_models: Vec<String>,

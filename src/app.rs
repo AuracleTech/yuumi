@@ -32,21 +32,28 @@ pub(crate) const VALIDATION_LAYER: vk::ExtensionName =
     vk::ExtensionName::from_bytes(b"VK_LAYER_KHRONOS_validation");
 
 #[derive(Debug)]
-pub(crate) struct App {
+pub struct App {
     _entry: Entry,
     instance: Instance,
     data: AppData,
-    pub(crate) device: Device,
-    pub(crate) destroying: bool,
+    pub device: Device,
+    pub running: bool,
     pub(crate) frame: usize,
-    pub(crate) resized: bool,
-    pub(crate) minimized: bool,
+    pub resized: bool,
+    pub minimized: bool,
     pub(crate) metrics: Metrics,
-    pub(crate) assets: Arc<RwLock<Assets>>,
+    pub assets: Arc<RwLock<Assets>>,
 }
 
 impl App {
-    pub(crate) fn new(window: &Window) -> Result<Self> {
+    pub fn new_windowed(window: &Window) -> Result<Self> {
+        if !log::log_enabled!(log::Level::Info) {
+            pretty_env_logger::init();
+        }
+
+        #[cfg(debug_assertions)]
+        crate::shader::compile_shaders()?;
+
         unsafe {
             let loader = LibloadingLoader::new(LIBRARY)?;
             let _entry = Entry::new(loader).map_err(|b| anyhow!("{}", b))?;
@@ -60,7 +67,7 @@ impl App {
                 instance,
                 data,
                 device,
-                destroying: false,
+                running: true,
                 frame: 0,
                 resized: false,
                 minimized: false,
@@ -123,14 +130,7 @@ impl App {
         }
     }
 
-    pub(crate) fn update(&mut self) -> Result<()> {
-        Ok(())
-    }
-
-    pub(crate) unsafe fn render(&mut self, window: &Window) -> Result<()> {
-        // FIX run update() on separate thread
-        self.update()?;
-
+    pub unsafe fn render(&mut self, window: &Window) -> Result<()> {
         self.metrics.cycle.start_frame();
 
         // We wait for the fence of the current frame to finish executing. This is because we're going to re-use this frame's resources.
