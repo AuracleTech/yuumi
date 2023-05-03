@@ -1,5 +1,5 @@
 use anyhow::Result;
 
 fn main() -> Result<()> {
-    titan::run("Vulkan in Rust")
+    yuumi::run("Vulkan in Rust")
 }

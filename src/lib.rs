@@ -188,6 +188,20 @@ pub fn run(window_title: &str) -> Result<()> {
         }
     });
 
+    // let mut start = std::time::Instant::now();
+    // let mut input_process_count = 0;
+
+    // let now = std::time::Instant::now();
+    // let delta = std::time::Instant::now()
+    //     .duration_since(start)
+    //     .as_secs_f32();
+    // input_process_count += 1;
+    // if delta > 1.0 {
+    //     println!("INPUT PROCESS COUNT: {}", input_process_count);
+    //     start = now;
+    //     input_process_count = 0;
+    // }
+
     event_loop.run(move |event, _, control_flow| {
         *control_flow = ControlFlow::Poll;
         match event {
