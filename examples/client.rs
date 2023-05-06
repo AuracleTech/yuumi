@@ -1,6 +1,7 @@
+use std::sync::{Arc, Mutex};
+
 use anyhow::Result;
 use cgmath::{Deg, Quaternion, Rotation3, Vector3};
-use vulkanalia::vk::DeviceV1_0;
 use winit::{
     dpi::PhysicalPosition,
     event::{ElementState, Event, VirtualKeyCode, WindowEvent},
@@ -38,7 +39,7 @@ fn main() -> Result<()> {
     );
 
     // App
-    let mut app = App::new_windowed(&window)?;
+    let app = Arc::new(Mutex::new(App::new_windowed(&window)?));
 
     // Assets
     let mut camera_controller = CameraController {
@@ -55,8 +56,9 @@ fn main() -> Result<()> {
 
     let (sender, receiver) = std::sync::mpsc::channel::<Event<()>>();
 
-    // Process events
-    let assets_arc = std::sync::Arc::clone(&app.assets);
+    // Thread input
+    let app_arc_thread_input = Arc::clone(&app);
+    let asset1 = Arc::clone(&app_arc_thread_input.lock().unwrap().assets);
     std::thread::spawn(move || loop {
         let event = receiver.recv().unwrap();
         match event {
@@ -65,7 +67,7 @@ fn main() -> Result<()> {
                     if input.state == ElementState::Pressed {
                         match input.virtual_keycode {
                             Some(VirtualKeyCode::W) => {
-                                let mut assets = assets_arc.write().expect("Failed to lock assets");
+                                let mut assets = asset1.write().expect("Failed to lock assets");
                                 let camera = assets
                                     .cameras
                                     .get_mut("main")
@@ -75,7 +77,7 @@ fn main() -> Result<()> {
                                 camera.update();
                             }
                             Some(VirtualKeyCode::S) => {
-                                let mut assets = assets_arc.write().expect("Failed to lock assets");
+                                let mut assets = asset1.write().expect("Failed to lock assets");
                                 let camera = assets
                                     .cameras
                                     .get_mut("main")
@@ -85,7 +87,7 @@ fn main() -> Result<()> {
                                 camera.update();
                             }
                             Some(VirtualKeyCode::A) => {
-                                let mut assets = assets_arc.write().expect("Failed to lock assets");
+                                let mut assets = asset1.write().expect("Failed to lock assets");
                                 let camera = assets
                                     .cameras
                                     .get_mut("main")
@@ -95,7 +97,7 @@ fn main() -> Result<()> {
                                 camera.update();
                             }
                             Some(VirtualKeyCode::D) => {
-                                let mut assets = assets_arc.write().expect("Failed to lock assets");
+                                let mut assets = asset1.write().expect("Failed to lock assets");
                                 let camera = assets
                                     .cameras
                                     .get_mut("main")
@@ -105,7 +107,7 @@ fn main() -> Result<()> {
                                 camera.update();
                             }
                             Some(VirtualKeyCode::Space) => {
-                                let mut assets = assets_arc.write().expect("Failed to lock assets");
+                                let mut assets = asset1.write().expect("Failed to lock assets");
                                 let camera = assets
                                     .cameras
                                     .get_mut("main")
@@ -115,7 +117,7 @@ fn main() -> Result<()> {
                                 camera.update();
                             }
                             Some(VirtualKeyCode::LControl) => {
-                                let mut assets = assets_arc.write().expect("Failed to lock assets");
+                                let mut assets = asset1.write().expect("Failed to lock assets");
                                 let camera = assets
                                     .cameras
                                     .get_mut("main")
@@ -133,6 +135,11 @@ fn main() -> Result<()> {
                                         _ => 4,
                                     };
                             }
+                            Some(VirtualKeyCode::Escape) => {
+                                let app =
+                                    &mut app_arc_thread_input.lock().expect("Failed to lock app");
+                                app.destroy();
+                            }
                             _ => {}
                         }
                     }
@@ -143,9 +150,8 @@ fn main() -> Result<()> {
         }
     });
 
-    app.running = false;
-
     event_loop.run(move |event, _, control_flow| {
+        let app = &mut app.lock().unwrap();
         *control_flow = ControlFlow::Poll;
         match event {
             Event::MainEventsCleared if app.running && !app.minimized => {
@@ -155,7 +161,8 @@ fn main() -> Result<()> {
                 event: WindowEvent::CloseRequested,
                 ..
             } => {
-                destroy(&mut app, control_flow);
+                *control_flow = ControlFlow::Exit;
+                app.destroy();
             }
             Event::WindowEvent {
                 event: WindowEvent::Resized(size),
@@ -279,7 +286,7 @@ fn main() -> Result<()> {
 
                 match input.virtual_keycode {
                     Some(VirtualKeyCode::Escape) => {
-                        destroy(&mut app, control_flow);
+                        *control_flow = ControlFlow::Exit;
                     }
                     _ => {}
                 }
@@ -287,14 +294,4 @@ fn main() -> Result<()> {
             _ => {}
         }
     });
-}
-
-fn destroy(app: &mut App, control_flow: &mut ControlFlow) {
-    app.running = false;
-    *control_flow = ControlFlow::Exit;
-    unsafe {
-        app.device
-            .device_wait_idle()
-            .expect("Failed to wait for device to idle");
-    }
 }

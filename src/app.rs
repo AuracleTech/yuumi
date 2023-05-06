@@ -507,6 +507,15 @@ impl App {
             .for_each(|v| self.device.destroy_image_view(*v, None));
         self.device.destroy_swapchain_khr(self.data.swapchain, None);
     }
+
+    pub fn destroy(&mut self) {
+        self.running = false;
+        unsafe {
+            self.device
+                .device_wait_idle()
+                .expect("Failed to wait for device to idle");
+        }
+    }
 }
 
 impl Drop for App {
