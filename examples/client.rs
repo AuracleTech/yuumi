@@ -32,12 +32,6 @@ fn main() -> Result<()> {
     window.set_cursor_grab(winit::window::CursorGrabMode::Confined)?;
     window.set_cursor_visible(false);
 
-    // Set the initial cursor position to the center of the window
-    let cursor_position = winit::dpi::PhysicalPosition::new(
-        window.inner_size().width as f64 / 2.0,
-        window.inner_size().height as f64 / 2.0,
-    );
-
     // App
     let app = Arc::new(Mutex::new(App::new_windowed(&window)?));
 
@@ -192,11 +186,12 @@ fn main() -> Result<()> {
                 ..
             } => {
                 // Set the new cursor position to the center of the window
+                let cursor_position = PhysicalPosition::new(
+                    window.inner_size().width as f64 / 2.0,
+                    window.inner_size().height as f64 / 2.0,
+                );
                 window
-                    .set_cursor_position(PhysicalPosition::new(
-                        window.inner_size().width as f64 / 2.0,
-                        window.inner_size().height as f64 / 2.0,
-                    ))
+                    .set_cursor_position(cursor_position)
                     .expect("Failed to set cursor position");
 
                 let mut assets = app.assets.write().expect("Failed to lock assets");
