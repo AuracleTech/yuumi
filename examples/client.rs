@@ -51,8 +51,8 @@ fn main() -> Result<()> {
     let (sender, receiver) = std::sync::mpsc::channel::<Event<()>>();
 
     // Thread input
-    let app_arc_thread_input = Arc::clone(&app);
-    let asset1 = Arc::clone(&app_arc_thread_input.lock().unwrap().assets);
+    let app_arc = Arc::clone(&app);
+    let assets_rwlock = Arc::clone(&app_arc.lock().unwrap().assets);
     std::thread::spawn(move || loop {
         let event = receiver.recv().unwrap();
         match event {
@@ -61,7 +61,8 @@ fn main() -> Result<()> {
                     if input.state == ElementState::Pressed {
                         match input.virtual_keycode {
                             Some(VirtualKeyCode::W) => {
-                                let mut assets = asset1.write().expect("Failed to lock assets");
+                                let mut assets =
+                                    assets_rwlock.write().expect("Failed to lock assets");
                                 let camera = assets
                                     .cameras
                                     .get_mut("main")
@@ -71,7 +72,8 @@ fn main() -> Result<()> {
                                 camera.update();
                             }
                             Some(VirtualKeyCode::S) => {
-                                let mut assets = asset1.write().expect("Failed to lock assets");
+                                let mut assets =
+                                    assets_rwlock.write().expect("Failed to lock assets");
                                 let camera = assets
                                     .cameras
                                     .get_mut("main")
@@ -81,7 +83,8 @@ fn main() -> Result<()> {
                                 camera.update();
                             }
                             Some(VirtualKeyCode::A) => {
-                                let mut assets = asset1.write().expect("Failed to lock assets");
+                                let mut assets =
+                                    assets_rwlock.write().expect("Failed to lock assets");
                                 let camera = assets
                                     .cameras
                                     .get_mut("main")
@@ -91,7 +94,8 @@ fn main() -> Result<()> {
                                 camera.update();
                             }
                             Some(VirtualKeyCode::D) => {
-                                let mut assets = asset1.write().expect("Failed to lock assets");
+                                let mut assets =
+                                    assets_rwlock.write().expect("Failed to lock assets");
                                 let camera = assets
                                     .cameras
                                     .get_mut("main")
@@ -101,7 +105,8 @@ fn main() -> Result<()> {
                                 camera.update();
                             }
                             Some(VirtualKeyCode::Space) => {
-                                let mut assets = asset1.write().expect("Failed to lock assets");
+                                let mut assets =
+                                    assets_rwlock.write().expect("Failed to lock assets");
                                 let camera = assets
                                     .cameras
                                     .get_mut("main")
@@ -111,7 +116,8 @@ fn main() -> Result<()> {
                                 camera.update();
                             }
                             Some(VirtualKeyCode::LControl) => {
-                                let mut assets = asset1.write().expect("Failed to lock assets");
+                                let mut assets =
+                                    assets_rwlock.write().expect("Failed to lock assets");
                                 let camera = assets
                                     .cameras
                                     .get_mut("main")
@@ -130,8 +136,7 @@ fn main() -> Result<()> {
                                     };
                             }
                             Some(VirtualKeyCode::Escape) => {
-                                let app =
-                                    &mut app_arc_thread_input.lock().expect("Failed to lock app");
+                                let app = &mut app_arc.lock().expect("Failed to lock app");
                                 app.destroy();
                             }
                             _ => {}
