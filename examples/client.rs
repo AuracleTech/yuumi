@@ -5,7 +5,6 @@ use cgmath::{Deg, Quaternion, Rotation3, Vector3};
 use winit::{
     dpi::PhysicalPosition,
     event::{ElementState, Event, VirtualKeyCode, WindowEvent},
-    event_loop::ControlFlow,
 };
 use yuumi::{App, CameraController, CameraProjectionKind};
 
@@ -28,9 +27,13 @@ fn main() -> Result<()> {
     let y = (monitor_size.height - window_size.height) / 2;
     window.set_outer_position(winit::dpi::PhysicalPosition::new(x, y));
 
-    // Event Loop
-    window.set_cursor_grab(winit::window::CursorGrabMode::Confined)?;
-    window.set_cursor_visible(false);
+    // Window states
+    let mut cursor_grab_mode = winit::window::CursorGrabMode::Confined;
+    let mut cursor_visible = false;
+
+    // Initiate window states
+    window.set_cursor_grab(cursor_grab_mode)?;
+    window.set_cursor_visible(cursor_visible);
 
     // App
     let app = Arc::new(Mutex::new(App::new_windowed(&window)?));
@@ -149,9 +152,10 @@ fn main() -> Result<()> {
         }
     });
 
+    // FIX TODO input event handler so that keys cannot have multiple commands at once
     event_loop.run(move |event, _, control_flow| {
         let app = &mut app.lock().unwrap();
-        *control_flow = ControlFlow::Poll;
+        *control_flow = winit::event_loop::ControlFlow::Poll;
         match event {
             Event::MainEventsCleared if app.running && !app.minimized => {
                 unsafe { app.render(&window) }.expect("Failed to render");
@@ -160,7 +164,7 @@ fn main() -> Result<()> {
                 event: WindowEvent::CloseRequested,
                 ..
             } => {
-                *control_flow = ControlFlow::Exit;
+                *control_flow = winit::event_loop::ControlFlow::Exit;
                 app.destroy();
             }
             Event::WindowEvent {
@@ -192,7 +196,9 @@ fn main() -> Result<()> {
             } => {
                 // Set the new cursor position to the center of the window
                 let cursor_position = PhysicalPosition::new(
+                    // FIX add the window's position (x offset) to the cursor position
                     window.inner_size().width as f64 / 2.0,
+                    // FIX add the window's position (y offset) to the cursor position
                     window.inner_size().height as f64 / 2.0,
                 );
                 window
@@ -285,9 +291,40 @@ fn main() -> Result<()> {
                     .expect("Failed to send event to input thread");
 
                 match input.virtual_keycode {
-                    Some(VirtualKeyCode::Escape) => {
-                        *control_flow = ControlFlow::Exit;
-                    }
+                    Some(key) => match key {
+                        VirtualKeyCode::Escape => {
+                            *control_flow = winit::event_loop::ControlFlow::Exit
+                        }
+                        // TEMP toggle window decorations
+                        VirtualKeyCode::Z { .. } => {
+                            window.set_decorations(!window.is_decorated());
+                        }
+                        // TEMP toggle borderless fullscreen
+                        VirtualKeyCode::B { .. } => {
+                            window.set_fullscreen(Some(winit::window::Fullscreen::Borderless(
+                                window.current_monitor(),
+                            )));
+                        }
+                        // TEMP toggle cursor grab
+                        VirtualKeyCode::G { .. } => {
+                            if cursor_grab_mode == winit::window::CursorGrabMode::Confined {
+                                cursor_grab_mode = winit::window::CursorGrabMode::None;
+                                cursor_visible = true;
+                            } else {
+                                cursor_grab_mode = winit::window::CursorGrabMode::Confined;
+                                cursor_visible = false;
+                            }
+                            window
+                                .set_cursor_grab(cursor_grab_mode)
+                                .expect("Failed to set cursor grab mode");
+                            window.set_cursor_visible(cursor_visible);
+                        }
+                        // TEMP toggle cursor visibility
+                        VirtualKeyCode::V { .. } => {
+                            window.set_cursor_visible(!cursor_visible);
+                        }
+                        _ => {}
+                    },
                     _ => {}
                 }
             }
