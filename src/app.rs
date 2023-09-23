@@ -47,9 +47,7 @@ pub struct App {
 
 impl App {
     pub fn new_windowed(window: &Window) -> Result<Self> {
-        if !log::log_enabled!(log::Level::Info) {
-            pretty_env_logger::init();
-        }
+        pretty_env_logger::init();
 
         #[cfg(debug_assertions)]
         crate::shader::compile_shaders()?;
