@@ -15,6 +15,7 @@ use crate::pipeline::create_pipeline;
 use crate::render_pass::create_render_pass;
 use crate::swapchain::create_swapchain;
 use crate::sync_object::create_sync_objects;
+use crate::texture_sampler::create_texture_sampler;
 use crate::uniform_buffer::{create_uniform_buffers, UniformBufferObject};
 use anyhow::{anyhow, Result};
 use cgmath::SquareMatrix;
@@ -43,6 +44,8 @@ pub struct App {
     pub minimized: bool,
     pub(crate) metrics: Metrics,
     pub assets: Arc<RwLock<Assets>>,
+    // TEMP
+    sampler: vk::Sampler,
 }
 
 impl App {
@@ -71,6 +74,7 @@ impl App {
                 minimized: false,
                 metrics: Metrics::default(),
                 assets: Arc::new(RwLock::new(Assets::default())),
+                sampler: vk::Sampler::null(),
             };
             create_swapchain(&window, &app.instance, &app.device, &mut app.data)?;
             create_swapchain_image_views(&app.device, &mut app.data)?;
@@ -87,6 +91,7 @@ impl App {
                 assets.cameras.insert("main".to_owned(), Camera::default());
                 assets.active_camera = "main".to_owned();
 
+                // Prepare models
                 assets.load_model("cube", &mut app.instance, &mut app.device, &mut app.data)?;
                 assets.load_model(
                     "viking_room",
@@ -94,30 +99,33 @@ impl App {
                     &mut app.device,
                     &mut app.data,
                 )?;
-
-                assets.active_models.push("viking_room".to_string());
                 assets.active_models.push("cube".to_string());
+                assets.active_models.push("viking_room".to_string());
 
+                // Prepare textures
                 assets.load_texture(
                     "viking_room",
                     &mut app.instance,
                     &mut app.device,
                     &mut app.data,
                 )?;
+                assets.load_texture("cube", &mut app.instance, &mut app.device, &mut app.data)?;
 
-                // FIX active textures
-                let texture = assets
+                let mip_levels = 1; // TEMP
+                app.sampler = create_texture_sampler(&app.device, &mut app.data, &mip_levels)?;
+
+                // Load textures
+                let viking_room_texture = assets
                     .textures
                     .get("viking_room")
                     .expect("Texture not found");
+                let cube_texture = assets.textures.get("cube").expect("Texture not found");
+
+                let textures = &[cube_texture, viking_room_texture];
+
                 create_uniform_buffers(&app.instance, &app.device, &mut app.data)?;
                 create_descriptor_pool(&app.device, &mut app.data)?;
-                create_descriptor_sets(
-                    &app.device,
-                    &mut app.data,
-                    &texture.image_view,
-                    &texture.sampler,
-                )?;
+                create_descriptor_sets(&app.device, &mut app.data, textures, &app.sampler)?;
             }
             create_command_buffers(&app.device, &mut app.data)?;
             create_sync_objects(&app.device, &mut app.data)?;
@@ -454,17 +462,15 @@ impl App {
 
         let assets = self.assets.read().expect("Failed to lock assets");
 
-        let texture = assets
+        // Load textures
+        let viking_room_texture = assets
             .textures
             .get("viking_room")
             .expect("Texture not found");
+        let cube_texture = assets.textures.get("cube").expect("Texture not found");
+        let textures = &[cube_texture, viking_room_texture];
 
-        create_descriptor_sets(
-            &self.device,
-            &mut self.data,
-            &texture.image_view,
-            &texture.sampler,
-        )?;
+        create_descriptor_sets(&self.device, &mut self.data, textures, &self.sampler)?;
         create_command_buffers(&self.device, &mut self.data)?;
         self.data
             .images_in_flight
@@ -531,11 +537,10 @@ impl Drop for App {
                 self.device.destroy_image(texture.image, None);
                 self.device.free_memory(texture.image_memory, None);
 
-                // FIX destroy samplers: self.device.destroy_sampler(texture.sampler, None);
-                self.device.destroy_sampler(texture.sampler, None);
-                // FIX destroy image views: self.device.destroy_image_view(texture.image_view, None);
                 self.device.destroy_image_view(texture.image_view, None);
             });
+
+            self.device.destroy_sampler(self.sampler, None);
 
             self.device
                 .destroy_descriptor_set_layout(self.data.descriptor_set_layout, None);

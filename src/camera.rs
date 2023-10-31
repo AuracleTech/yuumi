@@ -2,11 +2,11 @@ use cgmath::{
     ortho, point3, vec3, Deg, EuclideanSpace, Matrix4, Quaternion, Rotation3, SquareMatrix,
 };
 
-use crate::types::Position;
+use crate::types::PositionXYZ;
 
 #[derive(Debug)]
 pub struct Camera {
-    pub pos: Position,
+    pub pos: PositionXYZ,
     pub quat: Quaternion<f32>,
     pub projection_kind: CameraProjectionKind,
     pub(crate) projection: Matrix4<f32>,

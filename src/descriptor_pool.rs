@@ -2,7 +2,7 @@ use anyhow::Result;
 
 use vulkanalia::prelude::v1_0::*;
 
-use crate::{app::AppData, uniform_buffer::UniformBufferObject};
+use crate::{app::AppData, texture::Texture, uniform_buffer::UniformBufferObject};
 
 pub(crate) unsafe fn create_descriptor_pool(device: &Device, data: &mut AppData) -> Result<()> {
     let ubo_size = vk::DescriptorPoolSize::builder()
@@ -26,7 +26,7 @@ pub(crate) unsafe fn create_descriptor_pool(device: &Device, data: &mut AppData)
 pub(crate) unsafe fn create_descriptor_sets(
     device: &Device,
     data: &mut AppData,
-    image_view: &vk::ImageView,
+    textures: &[&Texture],
     sampler: &vk::Sampler,
 ) -> Result<()> {
     let layouts = vec![data.descriptor_set_layout; data.swapchain_images.len()];
@@ -50,20 +50,25 @@ pub(crate) unsafe fn create_descriptor_sets(
             .descriptor_type(vk::DescriptorType::UNIFORM_BUFFER)
             .buffer_info(buffer_info);
 
-        let info = vk::DescriptorImageInfo::builder()
-            .image_layout(vk::ImageLayout::SHADER_READ_ONLY_OPTIMAL)
-            .image_view(*image_view)
-            .sampler(*sampler);
+        for texture in textures {
+            let info = vk::DescriptorImageInfo::builder()
+                .image_layout(vk::ImageLayout::SHADER_READ_ONLY_OPTIMAL)
+                .image_view(texture.image_view)
+                .sampler(*sampler);
 
-        let image_info = &[info];
-        let sampler_write = vk::WriteDescriptorSet::builder()
-            .dst_set(data.descriptor_sets[i])
-            .dst_binding(1)
-            .dst_array_element(0)
-            .descriptor_type(vk::DescriptorType::COMBINED_IMAGE_SAMPLER)
-            .image_info(image_info);
+            let image_info = &[info];
+            let sampler_write = vk::WriteDescriptorSet::builder()
+                .dst_set(data.descriptor_sets[i])
+                .dst_binding(1)
+                .dst_array_element(0)
+                .descriptor_type(vk::DescriptorType::COMBINED_IMAGE_SAMPLER)
+                .image_info(image_info);
 
-        device.update_descriptor_sets(&[ubo_write, sampler_write], &[] as &[vk::CopyDescriptorSet]);
+            device.update_descriptor_sets(
+                &[ubo_write, sampler_write],
+                &[] as &[vk::CopyDescriptorSet],
+            );
+        }
     }
 
     Ok(())

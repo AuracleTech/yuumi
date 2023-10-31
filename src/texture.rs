@@ -1,7 +1,6 @@
 use crate::app::AppData;
 use crate::image_view::create_image_view;
 use crate::texture_image::create_texture_image;
-use crate::texture_sampler::create_texture_sampler;
 use anyhow::{anyhow, Result};
 use serde::{Deserialize, Serialize};
 use std::path::Path;
@@ -18,8 +17,6 @@ pub(crate) struct Texture {
     pub(crate) _mip_levels: u32,
     // OPTIMIZE use a reference to the image view to reuse the same image view for multiple textures
     pub(crate) _format: vk::Format,
-    // OPTIMIZE use a reference to the texture sampler to reuse the same sampler for multiple textures
-    pub(crate) sampler: vk::Sampler,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -65,11 +62,10 @@ pub(crate) fn load_texture(
     let (image, image_memory, mip_levels) =
         unsafe { create_texture_image(instance, device, data, &pixels, size, width, height)? };
 
-    // OPTIMIZE reuse image view and sampler for the most textures possible
+    // OPTIMIZE reuse image views
     let format = vk::Format::R8G8B8A8_SRGB;
     let aspects = vk::ImageAspectFlags::COLOR;
     let image_view = unsafe { create_image_view(device, &image, &format, &aspects, &mip_levels)? };
-    let sampler = unsafe { create_texture_sampler(device, data, &mip_levels)? };
 
     Ok(Texture {
         image,
@@ -79,7 +75,6 @@ pub(crate) fn load_texture(
         _width: width,
         _height: height,
         _format: vk::Format::R8G8B8A8_SRGB,
-        sampler,
     })
 }
 

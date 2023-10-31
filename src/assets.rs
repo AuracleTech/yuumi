@@ -46,6 +46,16 @@ impl Assets {
         Ok(())
     }
 
+    // TODO
+    pub(crate) fn _unload_model(&mut self, name: &str) -> Result<()> {
+        if !self.models.contains_key(name) {
+            return Err(anyhow!("Mesh name not found: {}", name));
+        }
+
+        self.models.remove(name);
+        Ok(())
+    }
+
     pub(crate) fn load_texture(
         &mut self,
         name: &str,
@@ -61,6 +71,16 @@ impl Assets {
             name.to_string(),
             texture::load_texture(name, instance, device, data)?,
         );
+        Ok(())
+    }
+
+    // TODO
+    pub(crate) fn _unload_texture(&mut self, name: &str) -> Result<()> {
+        if !self.textures.contains_key(name) {
+            return Err(anyhow!("Mesh name not found: {}", name));
+        }
+
+        self.textures.remove(name);
         Ok(())
     }
 }
