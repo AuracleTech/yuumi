@@ -26,56 +26,59 @@ pub(crate) struct SerializedTexture {
     pub(crate) pixels: Vec<u8>,
 }
 
-pub(crate) fn load_texture(
-    name: &str,
-    instance: &mut Instance,
-    device: &mut Device,
-    data: &mut AppData,
-) -> Result<Texture> {
-    let supported_extensions = vec!["bin", "png"];
+impl Texture {
+    pub(crate) fn load(
+        name: &str,
+        instance: &mut Instance,
+        device: &mut Device,
+        data: &mut AppData,
+    ) -> Result<Texture> {
+        let supported_extensions = vec!["bin", "png"];
 
-    let extension = supported_extensions
-        .iter()
-        .find_map(|extension| {
+        let extension = supported_extensions
+            .iter()
+            .find_map(|extension| {
+                let path = format!("assets/textures/{}.{}", name, extension);
+                if Path::new(&path).exists() {
+                    Some(extension)
+                } else {
+                    None
+                }
+            })
+            .ok_or(anyhow!("no supported texture found"))?;
+
+        if *extension != "bin" {
             let path = format!("assets/textures/{}.{}", name, extension);
-            if Path::new(&path).exists() {
-                Some(extension)
-            } else {
-                None
-            }
+            let (pixels, width, height) = match extension.as_ref() {
+                "png" => load_suboptimal_png(&path)?,
+                _ => Err(anyhow!("unsupported file extension: {}", extension))?,
+            };
+            save_optimal(&name, pixels, width, height)?;
+        }
+
+        let path = format!("assets/textures/{}.bin", name);
+        let (pixels, width, height) = load_optimal(&path)?;
+        let size = pixels.len() as u64;
+
+        let (image, image_memory, mip_levels) =
+            unsafe { create_texture_image(instance, device, data, &pixels, size, width, height)? };
+
+        // OPTIMIZE reuse image views
+        let format = vk::Format::R8G8B8A8_SRGB;
+        let aspects = vk::ImageAspectFlags::COLOR;
+        let image_view =
+            unsafe { create_image_view(device, &image, &format, &aspects, &mip_levels)? };
+
+        Ok(Texture {
+            image,
+            image_view,
+            image_memory,
+            _mip_levels: mip_levels,
+            _width: width,
+            _height: height,
+            _format: vk::Format::R8G8B8A8_SRGB,
         })
-        .ok_or(anyhow!("no supported texture found"))?;
-
-    if *extension != "bin" {
-        let path = format!("assets/textures/{}.{}", name, extension);
-        let (pixels, width, height) = match extension.as_ref() {
-            "png" => load_suboptimal_png(&path)?,
-            _ => Err(anyhow!("unsupported file extension: {}", extension))?,
-        };
-        save_optimal(&name, pixels, width, height)?;
     }
-
-    let path = format!("assets/textures/{}.bin", name);
-    let (pixels, width, height) = load_optimal(&path)?;
-    let size = pixels.len() as u64;
-
-    let (image, image_memory, mip_levels) =
-        unsafe { create_texture_image(instance, device, data, &pixels, size, width, height)? };
-
-    // OPTIMIZE reuse image views
-    let format = vk::Format::R8G8B8A8_SRGB;
-    let aspects = vk::ImageAspectFlags::COLOR;
-    let image_view = unsafe { create_image_view(device, &image, &format, &aspects, &mip_levels)? };
-
-    Ok(Texture {
-        image,
-        image_view,
-        image_memory,
-        _mip_levels: mip_levels,
-        _width: width,
-        _height: height,
-        _format: vk::Format::R8G8B8A8_SRGB,
-    })
 }
 
 fn load_suboptimal_png(path: &str) -> Result<(Vec<u8>, u32, u32)> {
