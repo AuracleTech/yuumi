@@ -76,43 +76,21 @@ impl App {
                 assets: Arc::new(RwLock::new(Assets::default())),
                 sampler: vk::Sampler::null(),
             };
+
             create_swapchain(&window, &app.instance, &app.device, &mut app.data)?;
             create_swapchain_image_views(&app.device, &mut app.data)?;
             create_render_pass(&app.instance, &app.device, &mut app.data)?;
-            create_descriptor_set_layout(&app.device, &mut app.data)?;
+            create_descriptor_set_layout(&app.device, &mut app.data)?; // TODO ON INIT ONLY
             create_pipeline(&app.device, &mut app.data)?;
-            create_command_pools(&app.instance, &app.device, &mut app.data)?;
+            create_command_pools(&app.instance, &app.device, &mut app.data)?; // TODO ON INIT ONLY
             create_color_objects(&app.instance, &app.device, &mut app.data)?;
             create_depth_objects(&app.instance, &app.device, &mut app.data)?;
             create_framebuffers(&app.device, &mut app.data)?;
+
+            app.init_assets()?;
+
             {
-                let mut assets = app.assets.write().expect("Failed to lock assets");
-
-                assets.cameras.insert("main".to_owned(), Camera::default());
-                assets.active_camera = "main".to_owned();
-
-                // Prepare models
-                assets.load_model("cube", &mut app.instance, &mut app.device, &mut app.data)?;
-                assets.load_model(
-                    "viking_room",
-                    &mut app.instance,
-                    &mut app.device,
-                    &mut app.data,
-                )?;
-                assets.active_models.push("cube".to_string());
-                assets.active_models.push("viking_room".to_string());
-
-                // Prepare textures
-                assets.load_texture(
-                    "viking_room",
-                    &mut app.instance,
-                    &mut app.device,
-                    &mut app.data,
-                )?;
-                assets.load_texture("cube", &mut app.instance, &mut app.device, &mut app.data)?;
-
-                let mip_levels = 1; // TEMP
-                app.sampler = create_texture_sampler(&app.device, &mut app.data, &mip_levels)?;
+                let assets = app.assets.read().expect("Failed to lock assets");
 
                 // Load textures
                 let viking_room_texture = assets
@@ -128,12 +106,47 @@ impl App {
                 create_descriptor_sets(&app.device, &mut app.data, textures, &app.sampler)?;
             }
             create_command_buffers(&app.device, &mut app.data)?;
-            create_sync_objects(&app.device, &mut app.data)?;
+
+            create_sync_objects(&app.device, &mut app.data)?; // TODO ON INIT ONLY
 
             app.metrics.cycle.start();
 
             Ok(app)
         }
+    }
+
+    pub unsafe fn init_assets(&mut self) -> Result<()> {
+        {
+            let mut assets = self.assets.write().expect("Failed to lock assets");
+
+            assets.cameras.insert("main".to_owned(), Camera::default());
+            assets.active_camera = "main".to_owned();
+
+            // Prepare models
+            assets.load_model("cube", &mut self.instance, &mut self.device, &mut self.data)?;
+            assets.load_model(
+                "viking_room",
+                &mut self.instance,
+                &mut self.device,
+                &mut self.data,
+            )?;
+            assets.active_models.push("cube".to_string());
+            assets.active_models.push("viking_room".to_string());
+
+            // Prepare textures
+            assets.load_texture(
+                "viking_room",
+                &mut self.instance,
+                &mut self.device,
+                &mut self.data,
+            )?;
+            assets.load_texture("cube", &mut self.instance, &mut self.device, &mut self.data)?;
+
+            let mip_levels = 1; // TEMP
+            self.sampler = create_texture_sampler(&self.device, &mut self.data, &mip_levels)?;
+        }
+
+        Ok(())
     }
 
     pub unsafe fn render(&mut self, window: &Window) -> Result<()> {
@@ -457,12 +470,13 @@ impl App {
         create_color_objects(&self.instance, &self.device, &mut self.data)?;
         create_depth_objects(&self.instance, &self.device, &mut self.data)?;
         create_framebuffers(&self.device, &mut self.data)?;
+
         create_uniform_buffers(&self.instance, &self.device, &mut self.data)?;
         create_descriptor_pool(&self.device, &mut self.data)?;
 
+        // Load textures
         let assets = self.assets.read().expect("Failed to lock assets");
 
-        // Load textures
         let viking_room_texture = assets
             .textures
             .get("viking_room")
