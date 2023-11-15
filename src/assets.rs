@@ -2,7 +2,7 @@ use crate::{
     app::AppData,
     camera::Camera,
     model::{self, Model},
-    texture::{self, Texture},
+    texture::Texture,
 };
 use anyhow::{anyhow, Result};
 use std::collections::HashMap;
@@ -64,12 +64,12 @@ impl Assets {
         data: &mut AppData,
     ) -> Result<()> {
         if self.textures.contains_key(name) {
-            return Err(anyhow!("Mesh name already in use: {}", name));
+            return Err(anyhow!("Texture name already in use: {}", name));
         }
 
         self.textures.insert(
             name.to_string(),
-            texture::load_texture(name, instance, device, data)?,
+            Texture::load(name, instance, device, data)?,
         );
         Ok(())
     }
@@ -77,7 +77,7 @@ impl Assets {
     // TODO
     pub(crate) fn _unload_texture(&mut self, name: &str) -> Result<()> {
         if !self.textures.contains_key(name) {
-            return Err(anyhow!("Mesh name not found: {}", name));
+            return Err(anyhow!("Texture name not found: {}", name));
         }
 
         self.textures.remove(name);
