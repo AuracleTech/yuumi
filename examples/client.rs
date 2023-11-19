@@ -157,7 +157,7 @@ fn main() -> Result<()> {
         let app = &mut app.lock().unwrap();
         *control_flow = winit::event_loop::ControlFlow::Poll;
         match event {
-            Event::MainEventsCleared if app.running && !app.minimized => {
+            Event::MainEventsCleared if app.rendering => {
                 unsafe { app.render(&window) }.expect("Failed to render");
             }
             Event::WindowEvent {
@@ -171,12 +171,14 @@ fn main() -> Result<()> {
                 event: WindowEvent::Resized(size),
                 ..
             } => {
+                app.resized = true;
+
                 if size.width == 0 || size.height == 0 {
-                    app.minimized = true;
+                    app.rendering = false;
                 } else {
-                    app.minimized = false;
-                    app.resized = true;
+                    app.rendering = true;
                 }
+
                 // Update camera aspect ratio
                 let window_inner_size = window.inner_size();
                 let mut assets = app.assets.write().expect("Failed to lock assets");

@@ -38,10 +38,9 @@ pub struct App {
     instance: Instance,
     data: AppData,
     pub device: Device,
-    pub running: bool,
+    pub rendering: bool,
     pub(crate) frame: usize,
     pub resized: bool,
-    pub minimized: bool,
     pub(crate) metrics: Metrics,
     pub assets: Arc<RwLock<Assets>>,
     // TEMP
@@ -68,10 +67,9 @@ impl App {
                 instance,
                 data,
                 device,
-                running: true,
+                rendering: false,
                 frame: 0,
                 resized: false,
-                minimized: false,
                 metrics: Metrics::default(),
                 assets: Arc::new(RwLock::new(Assets::default())),
                 sampler: vk::Sampler::null(),
@@ -110,6 +108,8 @@ impl App {
             create_sync_objects(&app.device, &mut app.data)?; // TODO ON INIT ONLY
 
             app.metrics.cycle.start();
+
+            app.rendering = true;
 
             Ok(app)
         }
@@ -527,7 +527,7 @@ impl App {
     }
 
     pub fn destroy(&mut self) {
-        self.running = false;
+        self.rendering = false;
         unsafe {
             self.device
                 .device_wait_idle()
