@@ -459,7 +459,6 @@ impl App {
         Ok(())
     }
 
-    // OPTIMIZE do not recreate swapchain if only the windows size changed
     pub(crate) unsafe fn recreate_swapchain(&mut self, window: &Window) -> Result<()> {
         self.device.device_wait_idle()?;
         self.destroy_swapchain();
@@ -597,7 +596,6 @@ impl Drop for App {
     }
 }
 
-/// The Vulkan handles and associated properties used by our Vulkan app.
 #[derive(Clone, Debug, Default)]
 pub(crate) struct AppData {
     pub(crate) surface: vk::SurfaceKHR,
